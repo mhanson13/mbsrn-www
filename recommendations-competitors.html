@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Recommendations & Competitor Insights – MBSRN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="See how MBSRN turns audit evidence and competitor research into actionable recommendations for small business SEO and website improvements." />
+  <meta name="robots" content="noindex, nofollow" />
+  <!-- DRAFT-ONLY: Migration preview, subject to operator review before any production use. -->
+  <style>
+    :root {
+      --bg: #020617;
+      --accent: #4ade80;
+      --muted: #9ca3af;
+      --border-subtle: #111827;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #0f172a 0, #020617 55%);
+      color: #e5e7eb;
+    }
+    a { color: inherit; text-decoration: none; }
+    .page { min-height: 100vh; display: flex; flex-direction: column; }
+    header { border-bottom: 1px solid rgba(31,41,55,0.9); background: rgba(15,23,42,0.98); backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 10; }
+    .nav { max-width: 1080px; margin: 0 auto; padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center; }
+    .logo { display: flex; align-items: center; gap: 0.6rem; font-weight: 650; letter-spacing: 0.03em; }
+    .logo-mark { width: 28px; height: 28px; border-radius: 9px; background: conic-gradient(from 210deg, #4ade80,#22d3ee,#a855f7,#4ade80); padding: 2px; box-shadow: 0 0 0 1px rgba(15,23,42,0.9); }
+    .logo-inner { width: 100%; height: 100%; border-radius: 7px; background: #020617; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+    .logo-sub { font-size: 0.7rem; color: var(--muted); margin-top: -0.15rem; }
+    .nav-links { display: flex; gap: 1.2rem; font-size: 0.86rem; }
+    .nav-links a { color: #e5e7eb; opacity: 0.85; }
+    .nav-links a:hover { opacity: 1; }
+    .nav-cta { padding: 0.4rem 1rem; border-radius: 999px; border: 1px solid rgba(74,222,128,0.6); background: linear-gradient(135deg, rgba(22,163,74,0.5), rgba(5,46,22,0.95)); font-size: 0.8rem; }
+    main { flex: 1; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 1.8rem 1.25rem 2.4rem; }
+    .kicker { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.4rem; }
+    h1 { font-size: clamp(1.8rem, 2.5vw, 2.1rem); margin: 0 0 0.4rem; letter-spacing: -0.04em; }
+    .lead { font-size: 0.94rem; color: var(--muted); max-width: 42rem; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.9rem 0 1.3rem; }
+    .pill { border-radius: 999px; border: 1px solid rgba(148,163,184,0.6); padding: 0.22rem 0.65rem; font-size: 0.73rem; color: var(--muted); }
+    .layout { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap: 1.7rem; margin-top: 1.4rem; align-items: flex-start; }
+    .card { border-radius: var(--radius); border: 1px solid var(--border-subtle); background: radial-gradient(circle at top left,#020617,#020617 65%,#020617 100%); padding: 0.9rem 1rem; font-size: 0.85rem; }
+    .card h2 { font-size: 1.05rem; margin: 0 0 0.45rem; }
+    .card h3 { font-size: 0.9rem; margin: 0.7rem 0 0.25rem; }
+    .muted { color: var(--muted); }
+    .table { margin-top: 0.7rem; border-radius: 10px; border: 1px solid rgba(31,41,55,0.9); overflow: hidden; font-size: 0.8rem; }
+    .table-header, .table-row { display: grid; grid-template-columns: 1.3fr 1.1fr 0.8fr 1.2fr; }
+    .table-header { background: rgba(15,23,42,0.95); font-weight: 600; }
+    .cell { padding: 0.45rem 0.55rem; border-bottom: 1px solid rgba(31,41,55,0.9); }
+    .badge { border-radius: 999px; border: 1px solid rgba(148,163,184,0.7); padding: 0.12rem 0.5rem; font-size: 0.68rem; display: inline-block; }
+    .badge-high { border-color: rgba(239,68,68,0.8); color: #fecaca; }
+    .badge-med { border-color: rgba(234,179,8,0.8); color: #fef3c7; }
+    .badge-low { border-color: rgba(52,211,153,0.8); color: #a7f3d0; }
+    .callout { margin-top: 0.9rem; padding: 0.75rem 0.8rem; border-radius: 10px; border: 1px dashed rgba(148,163,184,0.7); font-size: 0.8rem; color: var(--muted); }
+    .callout strong { color: #e5e7eb; }
+    .section-title { font-size: 1.05rem; margin: 1.9rem 0 0.35rem; }
+    .section-sub { font-size: 0.88rem; color: var(--muted); max-width: 42rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0.85rem; margin-top: 0.9rem; }
+    .tile { border-radius: 12px; border: 1px solid var(--border-subtle); background: #020617; padding: 0.7rem 0.8rem; font-size: 0.82rem; }
+    .tile h3 { font-size: 0.9rem; margin: 0 0 0.25rem; }
+    .mini { font-size: 0.74rem; color: var(--muted); }
+    .tag { font-size: 0.68rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.7); padding: 0.12rem 0.5rem; color: var(--muted); display: inline-block; margin-bottom: 0.3rem; }
+    .image-card { margin-top: 1rem; border-radius: 12px; border: 1px solid rgba(31,41,55,0.9); overflow: hidden; background: #020617; }
+    .image-note { font-size: 0.74rem; color: var(--muted); padding: 0.4rem 0.6rem 0.6rem; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.2rem; }
+    .btn-primary { padding: 0.65rem 1.3rem; border-radius: 999px; border: 1px solid rgba(74,222,128,0.7); background: linear-gradient(135deg,#22c55e,#16a34a); color: #052e16; font-size: 0.86rem; font-weight: 600; }
+    .btn-secondary { padding: 0.6rem 1.2rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.7); background: #020617; font-size: 0.82rem; }
+    footer { border-top: 1px solid rgba(31,41,55,0.95); background: #020617; padding: 1rem 1.25rem 1.6rem; font-size: 0.78rem; color: var(--muted); }
+    .footer-inner { max-width: 1080px; margin: 0 auto; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 1rem; }
+    @media (max-width: 920px) {
+      .nav-links { display: none; }
+      .layout { grid-template-columns: minmax(0,1fr); }
+      .table-header, .table-row { grid-template-columns: 1.4fr 1.1fr 0.9fr 1.1fr; }
+      .grid-3 { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width: 640px) {
+      .grid-3 { grid-template-columns: minmax(0,1fr); }
+    }
+  </style>
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TW1JKRGXTP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-TW1JKRGXTP');
+</script>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="nav">
+      <a class="logo" href="index.html">
+        <span class="logo-mark"><span class="logo-inner">MB</span></span>
+        <span>
+          <span>My Business Sucks Right Now</span><br />
+          <span class="logo-sub">From audit to action</span>
+        </span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="how-it-works.html#seo-audit">SEO Audit</a>
+        <a href="#">Recommendations</a>
+        <a href="#competitors">Competitor Insights</a>
+        <a href="migration-contact.html">Website Migration</a>
+        <a href="migration-contact.html#contact" class="nav-cta">Talk to an Operator</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <p class="kicker">Actionable, evidence‑backed guidance for your next website move</p>
+      <h1>Recommendations and competitor insights you can actually act on.</h1>
+      <p class="lead">
+        MBSRN turns raw audit findings and competitor research into
+        <strong>prioritized recommendations</strong>. Each one explains
+        <strong>what to fix, why it matters, what evidence supports it,</strong>
+        and <strong>what outcome to expect</strong> – in plain language.
+      </p>
+      <div class="pill-row">
+        <span class="pill">Built for small business owners and operators</span>
+        <span class="pill">No guaranteed rankings – just clearer next steps</span>
+        <span class="pill">Draft‑only example, not live production data</span>
+      </div>
+
+      <div class="layout">
+        <section class="card" aria-labelledby="rec-heading">
+          <h2 id="rec-heading">How MBSRN structures recommendations.</h2>
+          <p class="muted">
+            Instead of a long, overwhelming list, recommendations in MBSRN are
+            <strong>grouped, scored, and explained</strong> so you know where to start.
+          </p>
+          <div class="table" role="table" aria-label="Example recommendation structure">
+            <div class="table-header" role="row">
+              <div class="cell" role="columnheader">What to change</div>
+              <div class="cell" role="columnheader">Why it matters</div>
+              <div class="cell" role="columnheader">Impact</div>
+              <div class="cell" role="columnheader">Evidence & outcome</div>
+            </div>
+            <div class="table-row" role="row">
+              <div class="cell" role="cell">Create dedicated service pages with local headings.</div>
+              <div class="cell" role="cell">Right now, search engines and customers can’t clearly see what you offer in the 80542 area.</div>
+              <div class="cell" role="cell"><span class="badge badge-high">High</span></div>
+              <div class="cell" role="cell">Based on audit crawl + competitor pages. Expect clearer local visibility and more qualified leads.</div>
+            </div>
+            <div class="table-row" role="row">
+              <div class="cell" role="cell">Clarify your primary calls‑to‑action site‑wide.</div>
+              <div class="cell" role="cell">Too many disconnected messages make it hard for visitors to know the next step.</div>
+              <div class="cell" role="cell"><span class="badge badge-med">Medium</span></div>
+              <div class="cell" role="cell">Based on audit of click‑paths and GA4 data. Expect more form submissions and calls.</div>
+            </div>
+            <div class="table-row" role="row">
+              <div class="cell" role="cell">Improve metadata for key pages.</div>
+              <div class="cell" role="cell">Generic titles and descriptions reduce click‑through, even when you appear in search.</div>
+              <div class="cell" role="cell"><span class="badge badge-low">Lower</span></div>
+              <div class="cell" role="cell">Based on Search Console impressions vs clicks. Expect modest CTR improvements over time.</div>
+            </div>
+          </div>
+          <div class="callout">
+            <strong>Note:</strong> The example above is <strong>generic draft data</strong>, not your live site.
+            In production, recommendations are generated from your actual audits, competitor set,
+            and operator inputs – and are always reviewable before any changes are made.
+          </div>
+        </section>
+
+        <aside class="card">
+          <h2>Designed for owners, usable by operators.</h2>
+          <h3>For owners and managers</h3>
+          <p class="muted">
+            See a <strong>short, prioritized list</strong> of what matters most – with enough detail to make a confident decision, but not so much jargon that you tune out.
+          </p>
+          <h3>For operators and admins</h3>
+          <p class="muted">
+            Filter recommendations by <strong>impact, effort, and type</strong> (technical, content, local, UX), and push them into migration drafts and implementation queues.
+          </p>
+          <h3>For your future self</h3>
+          <p class="muted">
+            Every recommendation is traceable back to <strong>evidence sources</strong> like audits, Search Console, GA4, and competitor snapshots, so you can see why a decision was made later.
+          </p>
+          <div class="cta-row">
+            <a class="btn-primary" href="migration-contact.html#contact">Get a practical SEO plan</a>
+            <a class="btn-secondary" href="how-it-works.html#seo-audit">Review the audit flow</a>
+          </div>
+        </aside>
+      </div>
+
+      <section id="competitors" aria-labelledby="comp-heading">
+        <h2 class="section-title" id="comp-heading">Competitor insights: context, not copy‑and‑paste.</h2>
+        <p class="section-sub">
+          MBSRN uses competitor review to show you <strong>where you stand in your market</strong> –
+          what your peers explain clearly, which services they highlight, and how well they support local search. We focus on <strong>positioning and gaps</strong>, not imitation.
+        </p>
+        <div class="grid-3">
+          <article class="tile">
+            <span class="tag">Positioning</span>
+            <h3>How your story compares</h3>
+            <p class="mini">
+              See how competitors in and around your area talk about services, pricing, and trust signals.
+              Use this to <strong>differentiate</strong> instead of sounding like everyone else.
+            </p>
+          </article>
+          <article class="tile">
+            <span class="tag">Content gaps</span>
+            <h3>Pages you’re missing</h3>
+            <p class="mini">
+              Identify <strong>missing or thin pages</strong> – like FAQ, service‑area, or niche service pages – that competitors use to capture local demand.</p>
+          </article>
+          <article class="tile">
+            <span class="tag">Local SEO</span>
+            <h3>Nearby search opportunities</h3>
+            <p class="mini">
+              Connect <strong>local terms, neighborhoods, and intents</strong> you may be ignoring today, especially around your primary area (e.g., ZIP code 80542).</p>
+          </article>
+        </div>
+
+        <div class="layout" style="margin-top:1.4rem;">
+          <div class="card">
+            <h2>How competitor context drives better recommendations.</h2>
+            <p class="muted">
+              When we know <strong>how your competitors show up</strong>, we can recommend
+              <strong>more focused improvements</strong> to your content and structure.
+            </p>
+            <h3>Examples of competitor‑aware suggestions</h3>
+            <ul style="list-style:none;padding:0;margin:0.4rem 0 0;font-size:0.82rem;" class="muted">
+              <li style="margin-bottom:0.35rem;">• "Add a dedicated page for emergency / rush services – three of your closest competitors highlight this and likely win urgent searches."</li>
+              <li style="margin-bottom:0.35rem;">• "Your competitors have photo‑rich case studies. Consider adding at least 2–3 short examples with clear outcomes and calls‑to‑action."</li>
+              <li>• "Only you mention a particular niche service – expand this into a focused landing page to own that search space."</li>
+            </ul>
+            <p class="muted" style="margin-top:0.6rem;">
+              Again, all of this is <strong>recommendation input</strong>. Operators and stakeholders
+              decide which ideas to adopt and how to adapt them to your brand.
+            </p>
+          </div>
+          <aside class="card">
+            <h2>Real‑world stress, translated into calm workflows.</h2>
+            <div class="image-card">
+              <!-- Selected operator-provided media asset: stressed food-service worker for competitor/operations stress context -->
+              <img src="upl-849cfbe0-548c-4c7d-9ddc-be344e0107cb" alt="Stressed restaurant cook in a fiery kitchen holding a phone showing a food delivery order delayed notification" />
+              <div class="image-note">
+                Many operators feel this way about <strong>online visibility and third‑party platforms</strong>.
+                MBSRN doesn’t remove the pressure, but it gives you a <strong>clear, reviewable plan</strong> instead of guesswork.
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="cta-row">
+          <a class="btn-primary" href="migration-contact.html#contact">Review my recommendations</a>
+          <a class="btn-secondary" href="migration-contact.html">Explore website migration</a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div>© <span id="year">2026</span> My Business Sucks Right Now · Draft recommendations view</div>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="how-it-works.html">How It Works</a>
+        <a href="migration-contact.html">Website Migration</a>
+      </div>
+    </div>
+  </footer>
+</div>
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
