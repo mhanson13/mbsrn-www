@@ -1,0 +1,18 @@
+# mbsrn-managed-manifest:site_repo_template_v1
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: site-web-frontend-config-mbsrn-www
+  namespace: mbsrn-www
+  labels:
+    app.kubernetes.io/managed-by: mbsrn
+    app.kubernetes.io/name: site-web
+    mbsrn.io/repo: mbsrn-www
+    mbsrn.io/environment-key: gke-prod
+    mbsrn.io/environment-source: admin-config
+    mbsrn.io/site-id: df16ee39-faa4-4af4-ae16-36aeb5d1288b
+    mbsrn.io/namespace-source: repo-name
+    mbsrn.io/preview-hostname: mbsrn-www.site.mbsrn.com
+spec:
+  redirectToHttps:
+    enabled: true
