@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Website Migration & Contact – MBSRN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Learn how MBSRN ingests your existing website, captures operator requirements, generates migration drafts, and keeps all publishing under human review. Request a website review." />
+  <meta name="robots" content="noindex, nofollow" />
+  <!-- DRAFT-ONLY: Migration + contact preview, not connected to any backend form handler. -->
+  <style>
+    :root {
+      --bg: #020617;
+      --accent: #4ade80;
+      --muted: #9ca3af;
+      --border-subtle: #111827;
+      --radius: 14px;
+      --error: #f97373;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #020617 0, #020617 55%);
+      color: #e5e7eb;
+    }
+    a { color: inherit; text-decoration: none; }
+    .page { min-height: 100vh; display: flex; flex-direction: column; }
+    header { border-bottom: 1px solid rgba(31,41,55,0.9); background: rgba(15,23,42,0.98); backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 10; }
+    .nav { max-width: 960px; margin: 0 auto; padding: 0.75rem 1.25rem; display: flex; justify-content: space-between; align-items: center; }
+    .logo { display: flex; align-items: center; gap: 0.6rem; font-weight: 650; letter-spacing: 0.03em; }
+    .logo-mark { width: 28px; height: 28px; border-radius: 9px; background: conic-gradient(from 210deg, #4ade80,#22d3ee,#a855f7,#4ade80); padding: 2px; box-shadow: 0 0 0 1px rgba(15,23,42,0.9); }
+    .logo-inner { width: 100%; height: 100%; border-radius: 7px; background: #020617; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+    .logo-sub { font-size: 0.7rem; color: var(--muted); margin-top: -0.15rem; }
+    .nav-links { display: flex; gap: 1.1rem; font-size: 0.86rem; }
+    .nav-links a { color: #e5e7eb; opacity: 0.85; }
+    .nav-links a:hover { opacity: 1; }
+    .nav-cta { padding: 0.4rem 1rem; border-radius: 999px; border: 1px solid rgba(74,222,128,0.6); background: linear-gradient(135deg, rgba(22,163,74,0.5), rgba(5,46,22,0.95)); font-size: 0.8rem; }
+    main { flex: 1; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 1.8rem 1.25rem 2.4rem; }
+    .kicker { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.4rem; }
+    h1 { font-size: clamp(1.8rem, 2.5vw, 2.1rem); margin: 0 0 0.4rem; letter-spacing: -0.04em; }
+    .lead { font-size: 0.94rem; color: var(--muted); max-width: 40rem; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.85rem 0 1.3rem; }
+    .pill { border-radius: 999px; border: 1px solid rgba(148,163,184,0.6); padding: 0.22rem 0.65rem; font-size: 0.73rem; color: var(--muted); }
+    .layout { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 1.6rem; margin-top: 1.2rem; align-items: flex-start; }
+    .card { border-radius: var(--radius); border: 1px solid var(--border-subtle); background: radial-gradient(circle at top left,#020617,#020617 65%,#020617 100%); padding: 0.9rem 1rem; font-size: 0.85rem; }
+    .card h2 { font-size: 1.05rem; margin: 0 0 0.45rem; }
+    .muted { color: var(--muted); }
+    .steps { list-style: none; padding: 0; margin: 0.4rem 0 0; }
+    .steps li { margin-bottom: 0.4rem; display: flex; gap: 0.45rem; }
+    .steps span.icon { font-size: 0.75rem; opacity: 0.7; margin-top: 0.12rem; }
+    .image-card { margin-top: 0.7rem; border-radius: 12px; border: 1px solid rgba(31,41,55,0.9); overflow: hidden; background: #020617; }
+    .image-note { font-size: 0.74rem; color: var(--muted); padding: 0.4rem 0.6rem 0.55rem; }
+    form { display: grid; grid-template-columns: minmax(0,1fr); gap: 0.7rem; margin-top: 0.4rem; font-size: 0.85rem; }
+    label { display: block; font-size: 0.8rem; margin-bottom: 0.15rem; }
+    .field-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0.65rem; }
+    input, textarea, select {
+      width: 100%;
+      border-radius: 9px;
+      border: 1px solid rgba(31,41,55,0.9);
+      background: #020617;
+      color: #e5e7eb;
+      padding: 0.5rem 0.55rem;
+      font-size: 0.84rem;
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    .hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+    .checkbox-row { display: flex; align-items: flex-start; gap: 0.45rem; font-size: 0.8rem; }
+    .checkbox-row input { margin-top: 0.15rem; width: auto; }
+    .error-note { font-size: 0.76rem; color: var(--error); margin-top: 0.2rem; }
+    .btn-primary { margin-top: 0.3rem; padding: 0.65rem 1.3rem; border-radius: 999px; border: 1px solid rgba(74,222,128,0.7); background: linear-gradient(135deg,#22c55e,#16a34a); color: #052e16; font-size: 0.86rem; font-weight: 600; cursor: default; }
+    .legal-note { font-size: 0.74rem; color: var(--muted); margin-top: 0.5rem; }
+    footer { border-top: 1px solid rgba(31,41,55,0.95); background: #020617; padding: 1rem 1.25rem 1.6rem; font-size: 0.78rem; color: var(--muted); }
+    .footer-inner { max-width: 960px; margin: 0 auto; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 1rem; }
+    @media (max-width: 860px) {
+      .nav-links { display: none; }
+      .layout { grid-template-columns: minmax(0,1fr); }
+    }
+  </style>
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TW1JKRGXTP"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-TW1JKRGXTP');
+</script>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="nav">
+      <a class="logo" href="index.html">
+        <span class="logo-mark"><span class="logo-inner">MB</span></span>
+        <span>
+          <span>My Business Sucks Right Now</span><br />
+          <span class="logo-sub">Migration & contact draft</span>
+        </span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="index.html">Home</a>
+        <a href="how-it-works.html">How It Works</a>
+        <a href="recommendations-competitors.html">Recommendations</a>
+        <a href="#contact">Contact</a>
+        <a href="#contact" class="nav-cta">Request a Website Review</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <p class="kicker">Website migration, but under your control</p>
+      <h1>Website migration that starts with evidence and ends with your approval.</h1>
+      <p class="lead">
+        MBSRN can ingest your existing site, incorporate your requirements, and generate
+        <strong>draft static website artifacts</strong> – like the pages you’re reading now.
+        Nothing is published or deployed until <strong>you and your operators approve it.</strong>
+      </p>
+      <div class="pill-row">
+        <span class="pill">Draft‑only migration example</span>
+        <span class="pill">No automatic production changes</span>
+        <span class="pill">Serving operators around 80542 and beyond</span>
+      </div>
+
+      <div class="layout">
+        <section class="card" aria-labelledby="migration-heading">
+          <h2 id="migration-heading">What a migration with MBSRN looks like.</h2>
+          <p class="muted">
+            Whether you’re moving from a DIY site builder or an old custom site,
+            MBSRN focuses on <strong>structure, clarity, and SEO‑ready content</strong>, not just design.
+          </p>
+          <ol class="steps">
+            <li><span class="icon">1</span><span>
+              <strong>Ingest and review</strong><br />
+              We capture your current site, existing pages, and basic SEO signals.
+              Weak or missing content is treated as a <strong>starting point</strong>, not a template.
+            </span></li>
+            <li><span class="icon">2</span><span>
+              <strong>Capture operator requirements</strong><br />
+              Operators and owners define <strong>business goals, services, locations, and constraints</strong>
+              (for example, emphasizing local presence around ZIP 80542).
+            </span></li>
+            <li><span class="icon">3</span><span>
+              <strong>Generate draft structure and content</strong><br />
+              AI helps draft <strong>page layouts, headings, and copy</strong> informed by
+              audits, recommendations, and competitor context – all marked as draft.
+            </span></li>
+            <li><span class="icon">4</span><span>
+              <strong>Operator and stakeholder review</strong><br />
+              Operators and owners review each page, adjust wording, and decide which
+              <strong>recommendations to include</strong> before anything moves toward publishing.
+            </span></li>
+            <li><span class="icon">5</span><span>
+              <strong>Configure publishing targets</strong><br />
+              Admins confirm the <strong>domain and environment</strong> for deployment
+              (for example, staging vs production) outside of this static draft.
+            </span></li>
+            <li><span class="icon">6</span><span>
+              <strong>Safe publishing workflow</strong><br />
+              Only after explicit approvals do changes move to your chosen platform.
+              <strong>There are no automatic pushes</strong> from draft to live site.
+            </span></li>
+          </ol>
+          <div class="image-card">
+            <!-- Selected operator-provided media asset: construction worker frustrated with technology, used to show migration/tech friction -->
+            <img src="upl-6d2c57de-00f7-4e03-bc3a-8b5c7b893170" alt="Frustrated construction worker in safety gear struggling with a dirty laptop on a jobsite" />
+            <div class="image-note">
+              If managing your website feels like wrestling with job‑site tech,<br />
+              MBSRN gives operators a <strong>structured, reviewable migration path</strong> instead of ad‑hoc fixes.
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="contact" aria-labelledby="contact-heading">
+          <h2 id="contact-heading">Request a website review or SEO audit.</h2>
+          <p class="muted">
+            Use this layout as a reference for the information MBSRN typically collects.
+            This static draft <strong>does not submit data</strong> and is not wired to any backend.
+          </p>
+          <form aria-describedby="form-note">
+            <div class="field-row">
+              <div>
+                <label for="full-name">Full name</label>
+                <input id="full-name" name="full_name" type="text" placeholder="Alex Smith" />
+              </div>
+              <div>
+                <label for="business-name">Business name</label>
+                <input id="business-name" name="business_name" type="text" placeholder="Smith Services" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div>
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" placeholder="you@example.com" />
+              </div>
+              <div>
+                <label for="phone">Phone (optional)</label>
+                <input id="phone" name="phone_optional" type="tel" placeholder="(555) 555‑5555" />
+              </div>
+            </div>
+            <div>
+              <label for="website-url">Current website URL</label>
+              <input id="website-url" name="website_url" type="url" placeholder="https://www.yourbusiness.com" />
+              <p class="hint">We’ll use this to run a baseline audit and competitor check.</p>
+            </div>
+            <div>
+              <label for="primary-goal">Primary goal</label>
+              <select id="primary-goal" name="primary_goal_multi_select">
+                <option value="">Select one…</option>
+                <option value="audit">Understand what’s wrong with my current site</option>
+                <option value="migration">Explore a website migration</option>
+                <option value="local-seo">Improve local search presence</option>
+                <option value="plan">Get a practical SEO improvement plan</option>
+              </select>
+            </div>
+            <div>
+              <label for="message">Anything else we should know?</label>
+              <textarea id="message" name="message" placeholder="Tell us about your services, locations, and what “better” looks like for you."></textarea>
+            </div>
+            <div class="checkbox-row">
+              <input id="consent" name="consent_review_not_publishing" type="checkbox" />
+              <label for="consent">
+                I understand this is a <strong>draft‑only example</strong> and that in production,
+                MBSRN will not publish or deploy changes to my live site without explicit approval.
+              </label>
+            </div>
+            <p class="error-note">
+              This form is intentionally non‑functional in this migration draft. A production deployment would connect it to your chosen, secure contact or CRM system.
+            </p>
+            <button type="button" class="btn-primary" aria-disabled="true">Submit (disabled in draft)</button>
+            <p id="form-note" class="legal-note">
+              We don’t make legal, financial, or ranking guarantees. The focus is on
+              <strong>structured recommendations, safer workflows,</strong> and clearer next steps.
+            </p>
+          </form>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div>
+        © <span id="year">2026</span> My Business Sucks Right Now · Draft migration & contact view
+      </div>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="how-it-works.html">How It Works</a>
+        <a href="recommendations-competitors.html">Recommendations</a>
+      </div>
+    </div>
+  </footer>
+</div>
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
