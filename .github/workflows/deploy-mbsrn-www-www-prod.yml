@@ -1,0 +1,1659 @@
+# mbsrn-managed-template:site_repo_template_v1
+# mbsrn-workflow-signature: db495f568a6dd1dd2f1ca42bb2acede9d178509749cc75268a34203cb2d7af75
+name: MBSRN Deploy mbsrn-www
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      live_url: ${{ steps.resolve_live_url.outputs.live_url }}
+      resolved_live_url: ${{ steps.resolve_live_url.outputs.resolved_live_url }}
+      deployed_url: ${{ steps.resolve_live_url.outputs.deployed_url }}
+      host_reachable: ${{ steps.resolve_live_url.outputs.host_reachable }}
+      host_reachability_scheme: ${{ steps.resolve_live_url.outputs.host_reachability_scheme }}
+      dns_record_matches_ingress: ${{ steps.resolve_live_url.outputs.dns_record_matches_ingress }}
+      dns_expected_ip: ${{ steps.resolve_live_url.outputs.dns_expected_ip }}
+      dns_observed_ip: ${{ steps.resolve_live_url.outputs.dns_observed_ip }}
+      expected_static_ip_address: ${{ steps.resolve_live_url.outputs.expected_static_ip_address }}
+      static_ip_status: ${{ steps.resolve_live_url.outputs.static_ip_status }}
+      static_ip_users: ${{ steps.resolve_live_url.outputs.static_ip_users }}
+      tls_certificate_status: ${{ steps.resolve_live_url.outputs.tls_certificate_status }}
+      tls_domain_status: ${{ steps.resolve_live_url.outputs.tls_domain_status }}
+      ingress_status_ip: ${{ steps.resolve_live_url.outputs.ingress_status_ip }}
+      ingress_status_ip_matches_static_ip: ${{ steps.resolve_live_url.outputs.ingress_status_ip_matches_static_ip }}
+      static_ip_bound_to_expected_forwarding_rule: ${{ steps.resolve_live_url.outputs.static_ip_bound_to_expected_forwarding_rule }}
+      ingress_ip: ${{ steps.resolve_live_url.outputs.ingress_ip }}
+      ingress_conflict_detected: ${{ steps.resolve_live_url.outputs.ingress_conflict_detected }}
+      cert_identity_valid: ${{ steps.resolve_live_url.outputs.cert_identity_valid }}
+      https_probe_error_summary: ${{ steps.resolve_live_url.outputs.https_probe_error_summary }}
+      deploy_https_ready: ${{ steps.resolve_live_url.outputs.deploy_https_ready }}
+      site_runtime_image_reference: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_image_reference }}
+      site_runtime_image_selection_mode: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_image_selection_mode }}
+      site_runtime_image_repository: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_image_repository }}
+      site_runtime_image_tag: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_image_tag }}
+      site_runtime_source_commit: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_source_commit }}
+      site_runtime_content_source: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_content_source }}
+    environment:
+      name: gke-prod
+      url: ${{ steps.resolve_live_url.outputs.resolved_live_url }}
+    env:
+      K8S_NAMESPACE: mbsrn-www
+      MBSRN_NAMESPACE_SOURCE: repo-name
+      MBSRN_TARGET_ENVIRONMENT_KEY: gke-prod
+      MBSRN_TARGET_ENVIRONMENT_SOURCE: admin_config
+      MBSRN_SITE_IDENTITY: df16ee39-faa4-4af4-ae16-36aeb5d1288b
+      MBSRN_PREVIEW_HOSTNAME: mbsrn-www.site.mbsrn.com
+      MBSRN_PREVIEW_CERTIFICATE_NAME: site-web-preview-cert-mbsrn-www
+      MBSRN_PREVIEW_STATIC_IP_NAME: site-web-preview-ip-mbsrn-www
+      MBSRN_FRONTEND_CONFIG_NAME: site-web-frontend-config-mbsrn-www
+      MBSRN_BACKEND_CONFIG_NAME: site-web-backend-config-mbsrn-www
+      SITE_WEB_IMAGE_REPOSITORY: ghcr.io/mhanson13/mbsrn-www-site-web
+      SITE_WEB_IMAGE_TAG: ${{ vars.MBSRN_SITE_WEB_IMAGE_TAG || vars.SITE_WEB_IMAGE_TAG || secrets.MBSRN_SITE_WEB_IMAGE_TAG || secrets.SITE_WEB_IMAGE_TAG || '' }}
+      PRIVATE_IMAGE_AUTH_REQUIRED: "true"
+      GKE_CLUSTER_NAME: 'mbsrn-prod'
+      GKE_CLUSTER_LOCATION: 'us-central1'
+      GKE_PROJECT_ID: 'mbsrn-prod'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Prepare managed site runtime build context
+        run: |
+          set -euo pipefail
+          rm -rf site-runtime/context
+          mkdir -p site-runtime/context
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'k8s/' \
+            --exclude 'site-runtime/' \
+            --exclude 'mbsrn.key' \
+            --exclude 'README.md' \
+            --exclude 'LICENSE' \
+            --exclude '.gitignore' \
+            ./ site-runtime/context/
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push managed site runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: site-runtime
+          file: site-runtime/Dockerfile
+          push: true
+          provenance: false
+          tags: |
+            ${{ env.SITE_WEB_IMAGE_REPOSITORY }}:${{ github.sha }}
+            ${{ env.SITE_WEB_IMAGE_REPOSITORY }}:latest
+      - name: Validate GCP credentials
+        run: |
+          if [ -z "${{ secrets.GCP_DEPLOY_KEY }}" ]; then
+            echo "Missing GCP_DEPLOY_KEY secret"
+            exit 1
+          fi
+      - name: Validate GKE environment config
+        run: |
+          if [ -z "$GKE_CLUSTER_NAME" ]; then
+            echo "Missing managed GKE cluster name (admin config or legacy repo fallback)."
+            exit 1
+          fi
+          if [ -z "$GKE_CLUSTER_LOCATION" ]; then
+            echo "Missing managed GKE cluster location (admin config or legacy repo fallback)."
+            exit 1
+          fi
+          if [ -z "$GKE_PROJECT_ID" ]; then
+            echo "Missing managed GKE project id (admin config or legacy repo fallback)."
+            exit 1
+          fi
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_DEPLOY_KEY }}
+          create_credentials_file: true
+          export_environment_variables: true
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER_NAME }}
+          location: ${{ env.GKE_CLUSTER_LOCATION }}
+          project_id: ${{ env.GKE_PROJECT_ID }}
+      - name: Verify expected per-site static IP exists
+        run: |
+          set -euo pipefail
+          if ! gcloud compute addresses describe "$MBSRN_PREVIEW_STATIC_IP_NAME" --global --project "$GKE_PROJECT_ID" >/dev/null 2>&1; then
+            echo "deploy_runtime_reason_code=managed_site_static_ip_missing"
+            echo "deploy_runtime_reason_message=Expected per-site static IP must be created and assigned by admin before deploy."
+            echo "expected_static_ip_name=$MBSRN_PREVIEW_STATIC_IP_NAME"
+            echo "gcp_project_id=$GKE_PROJECT_ID"
+            exit 1
+          fi
+      - name: Ensure namespace exists
+        run: kubectl apply -f k8s/namespace.yaml
+      - name: Verify GHCR image pull secret
+        run: |
+          set -euo pipefail
+          kubectl get secret ghcr-pull-secret --namespace "$K8S_NAMESPACE"
+      - name: Reset stale site-web deployment
+        run: |
+          echo "Resetting deployment to eliminate stale image references."
+          kubectl delete deployment site-web --namespace "$K8S_NAMESPACE" --ignore-not-found
+      - name: Apply managed manifests
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/
+      - name: Resolve managed site runtime image
+        id: resolve_site_runtime_image
+        run: |
+          set -euo pipefail
+          selected_mode="immutable_sha"
+          selected_image="${SITE_WEB_IMAGE_REPOSITORY}:${GITHUB_SHA}"
+          normalized_tag="$(echo "${SITE_WEB_IMAGE_TAG:-}" | tr -d '[:space:]')"
+          if [ -n "$normalized_tag" ] && [ "$normalized_tag" != "latest" ]; then
+            if echo "$normalized_tag" | grep -Eq '^[A-Fa-f0-9]{7,64}$'; then
+              candidate_image="${SITE_WEB_IMAGE_REPOSITORY}:${normalized_tag}"
+              selected_image="$candidate_image"
+              selected_mode="immutable_sha"
+            else
+              echo "Configured SITE_WEB_IMAGE_TAG '$normalized_tag' is not a SHA-like tag; falling back to latest."
+              selected_image="${SITE_WEB_IMAGE_REPOSITORY}:latest"
+              selected_mode="fallback_latest"
+            fi
+          elif [ "$normalized_tag" = "latest" ]; then
+            selected_image="${SITE_WEB_IMAGE_REPOSITORY}:latest"
+            selected_mode="fallback_latest"
+          fi
+          echo "Managed site runtime image selected: ${selected_image} (mode=${selected_mode})"
+          kubectl set image deployment/site-web site-web="${selected_image}" --namespace "$K8S_NAMESPACE"
+          selected_repo="${selected_image}"
+          if echo "$selected_repo" | grep -q '@'; then
+            selected_repo="${selected_repo%%@*}"
+            selected_tag="digest"
+          else
+            selected_tag="latest"
+            if echo "$selected_repo" | grep -q ':'; then
+              selected_tag="${selected_repo##*:}"
+              selected_repo="${selected_repo%:*}"
+            fi
+          fi
+          {
+            echo "site_runtime_image_reference=${selected_image}"
+            echo "site_runtime_image_selection_mode=${selected_mode}"
+            echo "site_runtime_image_repository=${selected_repo}"
+            echo "site_runtime_image_tag=${selected_tag}"
+            echo "site_runtime_source_commit=${GITHUB_SHA}"
+            echo "site_runtime_content_source=site_repo_build"
+          } >> "$GITHUB_OUTPUT"
+      - name: Verify rollout
+        run: |
+          set -euo pipefail
+          if ! kubectl rollout status deployment/site-web --namespace "$K8S_NAMESPACE" --timeout=180s; then
+            echo "site-web rollout timed out in namespace $K8S_NAMESPACE; collecting bounded diagnostics."
+            kubectl get deployment site-web --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl get rs --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl get pods --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl get service site-web --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl get endpoints site-web --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl get endpointslice --namespace "$K8S_NAMESPACE" -l kubernetes.io/service-name=site-web -o wide || true
+            deployment_describe_output="$(mktemp)"
+            kubectl describe deployment site-web --namespace "$K8S_NAMESPACE" > "$deployment_describe_output" 2>&1 || true
+            cat "$deployment_describe_output"
+            describe_pods_output="$(mktemp)"
+            kubectl describe pods --namespace "$K8S_NAMESPACE" -l app.kubernetes.io/name=site-web > "$describe_pods_output" 2>&1 || true
+            cat "$describe_pods_output"
+            service_describe_output="$(mktemp)"
+            kubectl describe service site-web --namespace "$K8S_NAMESPACE" > "$service_describe_output" 2>&1 || true
+            cat "$service_describe_output"
+            ingress_describe_output="$(mktemp)"
+            kubectl describe ingress site-web --namespace "$K8S_NAMESPACE" > "$ingress_describe_output" 2>&1 || true
+            cat "$ingress_describe_output"
+            managedcertificate_describe_output="$(mktemp)"
+            kubectl describe managedcertificate "$MBSRN_PREVIEW_CERTIFICATE_NAME" --namespace "$K8S_NAMESPACE" > "$managedcertificate_describe_output" 2>&1 || true
+            cat "$managedcertificate_describe_output"
+            backendconfig_describe_output="$(mktemp)"
+            kubectl describe backendconfig "$MBSRN_BACKEND_CONFIG_NAME" --namespace "$K8S_NAMESPACE" > "$backendconfig_describe_output" 2>&1 || true
+            cat "$backendconfig_describe_output"
+            endpoints_output="$(mktemp)"
+            kubectl get endpoints site-web --namespace "$K8S_NAMESPACE" -o yaml > "$endpoints_output" 2>&1 || true
+            cat "$endpoints_output"
+            endpointslice_output="$(mktemp)"
+            kubectl get endpointslice --namespace "$K8S_NAMESPACE" -l kubernetes.io/service-name=site-web -o yaml > "$endpointslice_output" 2>&1 || true
+            cat "$endpointslice_output"
+            image_pull_detected=false
+            image_pull_secret_missing_detected=false
+            private_image_pull_forbidden_detected=false
+            public_image_pull_failed_detected=false
+            service_no_ready_endpoints_detected=false
+            ingress_backend_unhealthy_detected=false
+            pod_ready_detected=false
+            private_image_auth_required="${PRIVATE_IMAGE_AUTH_REQUIRED:-false}"
+            if grep -qiE 'ImagePullBackOff|ErrImagePull|pull access denied|manifest unknown|Failed to pull image' "$describe_pods_output"; then
+              image_pull_detected=true
+              echo "Likely rollout blocker: image pull backoff."
+            fi
+            if grep -qiE 'FailedToRetrieveImagePullSecret|image pull secret.*not found|pull secret.*not found|secret ".*" not found.*(pull|image)' "$describe_pods_output"; then
+              if [ "$private_image_auth_required" = "true" ]; then
+                image_pull_detected=true
+                image_pull_secret_missing_detected=true
+                echo "Likely rollout blocker: image pull secret missing."
+              fi
+            fi
+            if grep -qiE 'failed to fetch anonymous token|403[[:space:]]+Forbidden|unauthorized|authentication required' "$describe_pods_output"; then
+              image_pull_detected=true
+              if [ "$private_image_auth_required" = "true" ]; then
+                private_image_pull_forbidden_detected=true
+                echo "Likely rollout blocker: private image pull forbidden."
+                if [ "$image_pull_secret_missing_detected" = false ]; then
+                  echo "Likely rollout blocker: image pull secret not referenced."
+                fi
+              else
+                public_image_pull_failed_detected=true
+                echo "Likely rollout blocker: public image pull failed."
+              fi
+            fi
+            if grep -qiE 'Ready:[[:space:]]+True|ContainersReady[[:space:]]+True|Condition[[:space:]]+Ready[[:space:]]+True' "$describe_pods_output"; then
+              pod_ready_detected=true
+            fi
+            if grep -qiE 'endpoints:[[:space:]]*<none>|subsets:[[:space:]]*\[\]|addresses:[[:space:]]*\[\]|notreadyaddresses|no endpoints available' "$service_describe_output" "$endpoints_output" "$endpointslice_output"; then
+              service_no_ready_endpoints_detected=true
+              echo "Likely rollout blocker: service has no ready endpoints."
+              echo "deploy_runtime_reason_code=service_has_no_ready_endpoints"
+              echo "deploy_runtime_reason_code=service_endpoint_missing"
+            fi
+            if grep -qiE 'ingress backend.*unhealthy|backend service.*unhealthy|backend.*degraded mode|neg.*degraded mode|unhealthy backends' "$deployment_describe_output" "$describe_pods_output" "$ingress_describe_output"; then
+              ingress_backend_unhealthy_detected=true
+              echo "Likely rollout blocker: ingress backend unhealthy."
+              echo "deploy_runtime_reason_code=ingress_backend_unhealthy"
+              echo "deploy_runtime_reason_code=ingress_backend_unhealthy_after_rollout"
+            fi
+            if grep -qiE '502|bad gateway' "$ingress_describe_output" "$service_describe_output"; then
+              echo "Likely rollout blocker: ingress backend 502."
+              echo "deploy_runtime_reason_code=ingress_backend_502"
+            fi
+            if [ "$pod_ready_detected" = true ] && [ "$ingress_backend_unhealthy_detected" = true ]; then
+              echo "Likely rollout blocker: pod ready but ingress backend unhealthy."
+              echo "deploy_runtime_reason_code=pod_ready_but_ingress_backend_unhealthy"
+              echo "deploy_runtime_reason_code=service_endpoint_unhealthy"
+            fi
+            if grep -qiE 'backendconfig.*healthcheck|healthcheck.*path|health check.*path|requestpath' "$deployment_describe_output" "$describe_pods_output" "$backendconfig_describe_output"; then
+              echo "Likely rollout blocker: backendconfig health check mismatch."
+              echo "deploy_runtime_reason_code=backendconfig_health_check_mismatch"
+              echo "deploy_runtime_reason_code=backend_config_healthcheck_unhealthy"
+            fi
+            if grep -qiE 'failednotvisible' "$managedcertificate_describe_output"; then
+              echo "Likely rollout blocker: managed certificate failed visibility checks."
+              echo "deploy_runtime_reason_code=managed_certificate_failed_not_visible"
+            fi
+            if grep -qiE 'in-use and would result in a conflict|global static ip.*conflict|specified ip address is in-use' "$ingress_describe_output"; then
+              echo "Likely rollout blocker: ingress static IP conflict."
+              echo "deploy_runtime_reason_code=ingress_static_ip_conflict"
+            fi
+            if grep -qiE 'ingress\.gcp\.kubernetes\.io/pre-shared-cert' "$ingress_describe_output"; then
+              echo "Observed ingress pre-shared certificate controller metadata; verify managed-certificate desired-state evidence."
+              echo "deploy_runtime_reason_code=pre_shared_cert_metadata_mismatch"
+            fi
+            if [ "$image_pull_secret_missing_detected" = true ]; then
+              echo "deploy_runtime_reason_code=image_pull_secret_missing"
+            elif [ "$private_image_pull_forbidden_detected" = true ]; then
+              echo "deploy_runtime_reason_code=private_image_pull_forbidden"
+            elif [ "$public_image_pull_failed_detected" = true ]; then
+              echo "deploy_runtime_reason_code=public_image_pull_failed"
+            fi
+            if grep -qiE 'manifest unknown|name unknown|[Ii]magePullBackOff.*not found|[Ff]ailed to pull image.*not found|ghcr\.io/.+:.*not found' "$describe_pods_output"; then
+              image_pull_detected=true
+              echo "Likely rollout blocker: container image not found in registry."
+            fi
+            container_started_evidence=false
+            if grep -qiE 'Container ID:|Started:[[:space:]]+true|State:[[:space:]]+(Running|Terminated)' "$describe_pods_output"; then
+              container_started_evidence=true
+            fi
+            crash_direct_evidence=false
+            if grep -qiE 'CrashLoopBackOff|Back-off restarting failed container|OOMKilled|terminated with exit code|Last State:[[:space:]]+Terminated|Reason:[[:space:]]+Error' "$describe_pods_output"; then
+              crash_direct_evidence=true
+            fi
+            probe_direct_evidence=false
+            if grep -qiE 'Readiness probe failed|Liveness probe failed|Startup probe failed|Unhealthy|Probe errored' "$describe_pods_output"; then
+              probe_direct_evidence=true
+            fi
+            # Suppress crash/probe hints when current describe evidence shows image-pull blockers.
+            if [ "$image_pull_detected" = false ] && [ "$container_started_evidence" = true ] && [ "$crash_direct_evidence" = true ]; then
+              echo "Likely rollout blocker: pod crash/failing container startup."
+            fi
+            if [ "$image_pull_detected" = false ] && [ "$container_started_evidence" = true ] && [ "$probe_direct_evidence" = true ]; then
+              echo "Likely rollout blocker: readiness/liveness probe failure."
+            fi
+            if grep -qiE 'CreateContainerConfigError|CreateContainerError|secret ".*" not found|configmap ".*" not found' "$describe_pods_output"; then
+              echo "Likely rollout blocker: config or secret reference failure."
+            fi
+            if grep -qiE 'exceeded quota|FailedCreate|forbidden: exceeded quota|requested: requests\.(memory|cpu)|limited: requests\.(memory|cpu)|limited: limits\.' "$deployment_describe_output" "$describe_pods_output"; then
+              echo "Likely rollout blocker: namespace ResourceQuota rejection."
+            fi
+            if grep -qiE 'FailedScheduling|Insufficient|didn.t match Pod.s node affinity|taint|node.s had' "$describe_pods_output"; then
+              echo "Likely rollout blocker: scheduling or resource availability issue."
+            fi
+            rm -f "$deployment_describe_output"
+            rm -f "$describe_pods_output"
+            rm -f "$service_describe_output"
+            rm -f "$ingress_describe_output"
+            rm -f "$managedcertificate_describe_output"
+            rm -f "$backendconfig_describe_output"
+            rm -f "$endpoints_output"
+            rm -f "$endpointslice_output"
+            recent_pods="$(kubectl get pods --namespace "$K8S_NAMESPACE" -l app.kubernetes.io/name=site-web --sort-by=.metadata.creationTimestamp -o name 2>/dev/null | tail -n 3)"
+            if [ -n "$recent_pods" ]; then
+              for pod in $recent_pods; do
+                echo "--- recent logs: $pod ---"
+                kubectl logs --namespace "$K8S_NAMESPACE" "$pod" -c site-web --tail=200 || kubectl logs --namespace "$K8S_NAMESPACE" "$pod" --tail=200 || true
+              done
+            fi
+            exit 1
+          fi
+      - name: Verify service and ingress
+        run: |
+          set -euo pipefail
+          kubectl get service site-web --namespace "$K8S_NAMESPACE"
+          kubectl get ingress site-web --namespace "$K8S_NAMESPACE"
+          kubectl get service site-web --namespace "$K8S_NAMESPACE" -o yaml
+          kubectl get endpoints site-web --namespace "$K8S_NAMESPACE" -o yaml
+          kubectl get endpointslice --namespace "$K8S_NAMESPACE" -l kubernetes.io/service-name=site-web -o yaml || true
+          kubectl describe service site-web --namespace "$K8S_NAMESPACE" || true
+          kubectl describe ingress site-web --namespace "$K8S_NAMESPACE" || true
+          kubectl describe managedcertificate "$MBSRN_PREVIEW_CERTIFICATE_NAME" --namespace "$K8S_NAMESPACE" || true
+          kubectl describe backendconfig "$MBSRN_BACKEND_CONFIG_NAME" --namespace "$K8S_NAMESPACE" || true
+          endpoint_count="$(kubectl get endpoints site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{range .subsets[*].addresses[*]}x{end}' 2>/dev/null | wc -c | tr -d '[:space:]')"
+          if [ -z "$endpoint_count" ] || [ "$endpoint_count" -eq 0 ]; then
+            echo "deploy_runtime_reason_code=service_endpoint_missing"
+            echo "deploy_runtime_reason_code=service_has_no_ready_endpoints"
+            echo "deploy_runtime_reason_message=Service has no ready endpoints after rollout."
+            exit 1
+          fi
+          probe_max_attempts=20
+          probe_sleep_seconds=15
+          probe_attempt=1
+          probe_success=false
+          convergence_reason_reported=false
+          in_cluster_probe_timeout_detected=false
+          last_probe_pod=""
+          last_probe_output=""
+          while [ "$probe_attempt" -le "$probe_max_attempts" ]; do
+            probe_pod="site-web-healthcheck-${GITHUB_RUN_ID:-run}-${GITHUB_RUN_ATTEMPT:-1}-${probe_attempt}"
+            probe_pod="$(echo "$probe_pod" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-' | cut -c1-63)"
+            if [ -z "$probe_pod" ]; then
+              probe_pod="site-web-healthcheck-${probe_attempt}"
+            fi
+            last_probe_pod="$probe_pod"
+            kubectl delete pod "$probe_pod" --namespace "$K8S_NAMESPACE" --ignore-not-found || true
+            if [ -n "$last_probe_output" ] && [ -f "$last_probe_output" ]; then
+              rm -f "$last_probe_output"
+            fi
+            probe_output="$(mktemp)"
+            if kubectl run "$probe_pod" --namespace "$K8S_NAMESPACE" --image=curlimages/curl:8.10.1 --restart=Never --attach --command -- sh -c "curl -sS -f --connect-timeout 5 --max-time 15 http://site-web.${K8S_NAMESPACE}.svc.cluster.local:80/ >/dev/null" >"$probe_output" 2>&1; then
+              probe_success=true
+              rm -f "$probe_output"
+              last_probe_output=""
+              kubectl delete pod "$probe_pod" --namespace "$K8S_NAMESPACE" --ignore-not-found || true
+              break
+            fi
+            cat "$probe_output" || true
+            if grep -qiE 'curl: \(28\)|timed out|timeout was reached|failed to connect' "$probe_output"; then
+              in_cluster_probe_timeout_detected=true
+            fi
+            last_probe_output="$probe_output"
+            if [ "$probe_attempt" -lt "$probe_max_attempts" ]; then
+              kubectl delete pod "$probe_pod" --namespace "$K8S_NAMESPACE" --ignore-not-found || true
+              if [ "$convergence_reason_reported" = false ]; then
+                echo "deploy_runtime_reason_code=service_probe_waiting_for_convergence"
+                convergence_reason_reported=true
+              fi
+              echo "In-cluster service probe attempt ${probe_attempt}/${probe_max_attempts} failed; retrying in ${probe_sleep_seconds}s."
+              sleep "$probe_sleep_seconds"
+            fi
+            probe_attempt=$((probe_attempt + 1))
+          done
+          if [ "$probe_success" != true ]; then
+            if [ "$in_cluster_probe_timeout_detected" = true ]; then
+              echo "deploy_runtime_reason_code=in_cluster_service_probe_timeout"
+              echo "deploy_runtime_reason_code=network_policy_may_block_service_probe"
+            fi
+            echo "deploy_runtime_reason_code=in_cluster_service_curl_failed_after_retries"
+            echo "deploy_runtime_reason_code=in_cluster_service_curl_failed"
+            echo "deploy_runtime_reason_code=service_endpoint_unhealthy"
+            echo "deploy_runtime_reason_code=ingress_backend_unhealthy_after_rollout"
+            echo "deploy_runtime_reason_message=In-cluster service endpoint check failed after bounded retries."
+            kubectl get networkpolicy --namespace "$K8S_NAMESPACE" -o yaml || true
+            kubectl describe networkpolicy --namespace "$K8S_NAMESPACE" || true
+            latest_site_web_pod="$(kubectl get pods --namespace "$K8S_NAMESPACE" -l app.kubernetes.io/name=site-web --sort-by=.metadata.creationTimestamp -o name 2>/dev/null | tail -n 1 | sed 's#^pod/##')"
+            if [ -n "$latest_site_web_pod" ]; then
+              kubectl get pod "$latest_site_web_pod" --namespace "$K8S_NAMESPACE" --show-labels || true
+            fi
+            kubectl get service site-web --namespace "$K8S_NAMESPACE" -o jsonpath='selector={.spec.selector}{"\n"}ports={range .spec.ports[*]}{.name}:{.port}->{.targetPort}{"\n"}{end}' || true
+            kubectl get endpoints site-web --namespace "$K8S_NAMESPACE" -o yaml || true
+            kubectl get endpointslice --namespace "$K8S_NAMESPACE" -l kubernetes.io/service-name=site-web -o yaml || true
+            if [ -n "$last_probe_output" ] && [ -f "$last_probe_output" ]; then
+              rm -f "$last_probe_output"
+            fi
+            if [ -n "$last_probe_pod" ]; then
+              kubectl logs "$last_probe_pod" --namespace "$K8S_NAMESPACE" --tail=200 || true
+              kubectl delete pod "$last_probe_pod" --namespace "$K8S_NAMESPACE" --ignore-not-found || true
+            fi
+            exit 1
+          fi
+      - name: Resolve live URL from ingress status
+        id: resolve_live_url
+        run: |
+          set -euo pipefail
+          max_attempts=40
+          sleep_seconds=15
+          wait_seconds=$((max_attempts * sleep_seconds))
+          resolve_started_at="$(date +%s)"
+          echo "Waiting up to ${wait_seconds}s for ingress external address assignment in namespace $K8S_NAMESPACE."
+          ingress_host=""
+          ingress_ip=""
+          ingress_spec_host=""
+          preview_host="$MBSRN_PREVIEW_HOSTNAME"
+          host_reachable=false
+          host_reachability_scheme=""
+          tls_mismatch_detected=false
+          backend_502_detected=false
+          dns_record_matches_ingress=false
+          dns_expected_ip=""
+          dns_observed_ip=""
+          expected_static_ip_address=""
+          static_ip_status=""
+          static_ip_users=""
+          tls_certificate_status=""
+          tls_domain_status=""
+          ingress_status_ip=""
+          ingress_status_ip_matches_static_ip=false
+          static_ip_bound_to_expected_forwarding_rule=false
+          ingress_conflict_detected=false
+          cert_identity_valid=false
+          deploy_https_ready=false
+          observed_managed_certificate_domains=""
+          observed_managed_certificate_status=""
+          observed_managed_certificate_domain_status=""
+          https_probe_error_summary=""
+          https_probe_attempted=false
+          http_fallback_attempted=false
+          control_plane_ready=false
+          live_url=""
+          preview_https_status=""
+          preview_http_status=""
+          preview_probe_attempt=0
+          preview_probe_elapsed_seconds=0
+          gce_backend_health_status=""
+          k8s_endpoint_ready=""
+          service_probe_status=""
+          in_cluster_service_status_code=""
+          endpoint_probe_status=""
+          endpoint_probe_status_code=""
+          runtime_probe_status=""
+          pod_restart_detected=false
+          redact_sensitive_stream() {
+            sed -E \
+              -e 's/(Authorization:).*/\1 [REDACTED]/Ig' \
+              -e 's/(Proxy-Authorization:).*/\1 [REDACTED]/Ig' \
+              -e 's/(Cookie:).*/\1 [REDACTED]/Ig' \
+              -e 's/(Set-Cookie:).*/\1 [REDACTED]/Ig' \
+              -e 's/(Bearer )[A-Za-z0-9._~+\/=:-]+/\1[REDACTED]/g' \
+              -e 's/(Basic )[A-Za-z0-9._~+\/=:-]+/\1[REDACTED]/g' \
+              -e 's/([A-Za-z0-9_]*(token|secret|password|api[_-]?key)[A-Za-z0-9_]*[=:][[:space:]]*)[^[:space:]]+/\1[REDACTED]/Ig'
+          }
+          print_redacted_file() {
+            local file_path="$1"
+            if [ -f "$file_path" ]; then
+              cat "$file_path" | redact_sensitive_stream
+            fi
+          }
+          set_https_probe_error_summary() {
+            local probe_reason="$1"
+            local probe_exit_code="${2:-}"
+            local probe_status_code="${3:-}"
+            local probe_output_path="${4:-}"
+            local probe_detail=""
+            if [ -n "$probe_output_path" ] && [ -f "$probe_output_path" ]; then
+              probe_detail="$(head -n 1 "$probe_output_path" | tr -d '\r' | tr '\t' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-160)"
+            fi
+            if [ -z "$probe_detail" ]; then
+              probe_detail="$probe_reason"
+            fi
+            https_probe_error_summary="reason=$probe_reason"
+            if [ -n "$probe_exit_code" ]; then
+              https_probe_error_summary="$https_probe_error_summary;exit_code=$probe_exit_code"
+            fi
+            if [ -n "$probe_status_code" ]; then
+              https_probe_error_summary="$https_probe_error_summary;status=$probe_status_code"
+            fi
+            if [ -n "${http_fallback_attempted:-}" ]; then
+              https_probe_error_summary="$https_probe_error_summary;http_fallback_attempted=$http_fallback_attempted"
+            fi
+            https_probe_error_summary="$https_probe_error_summary;detail=$probe_detail"
+            https_probe_error_summary="$(echo "$https_probe_error_summary" | tr -d '\r' | cut -c1-240)"
+          }
+          ensure_https_probe_error_summary() {
+            if [ "$deploy_https_ready" = "true" ]; then
+              return
+            fi
+            if [ -n "$https_probe_error_summary" ]; then
+              return
+            fi
+            fallback_reason=""
+            fallback_detail=""
+            normalized_cert_status_local="$(echo "${tls_certificate_status:-}" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+            normalized_domain_status_local="$(echo "${tls_domain_status:-}" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+            if [ "${https_probe_attempted:-false}" = "true" ]; then
+              if [ "${control_plane_ready:-false}" = "true" ]; then
+                fallback_reason="https_probe_failed_after_control_plane_ready"
+                fallback_detail="probe_attempted_without_error_summary"
+              else
+                fallback_reason="https_probe_failed"
+                fallback_detail="probe_attempted_without_error_summary"
+              fi
+            elif [ "${dns_record_matches_ingress:-false}" != "true" ]; then
+              fallback_reason="dns_not_ready"
+              fallback_detail="dns_record_not_aligned_with_expected_ingress_target"
+            elif [ -z "${preview_host:-}" ] || { [ -z "${ingress_ip:-}" ] && [ "${host_reachable:-false}" != "true" ]; }; then
+              fallback_reason="host_resolution_pending"
+              fallback_detail="preview_host_or_ingress_not_ready"
+            elif [ "${cert_identity_valid:-false}" != "true" ] \
+              || [ "$normalized_cert_status_local" != "ACTIVE" ] \
+              || [ "$normalized_domain_status_local" != "ACTIVE" ]; then
+              fallback_reason="cert_not_ready"
+              fallback_detail="managed_certificate_not_active_or_identity_mismatch"
+            else
+              fallback_reason="https_probe_not_attempted"
+              fallback_detail="https_probe_not_attempted"
+            fi
+            https_probe_error_summary="reason=$fallback_reason;detail=$fallback_detail"
+            if [ "${https_probe_attempted:-false}" = "true" ]; then
+              https_probe_error_summary="$https_probe_error_summary;http_fallback_attempted=${http_fallback_attempted:-false}"
+            fi
+            https_probe_error_summary="$(echo "$https_probe_error_summary" | tr -d '\r' | cut -c1-240)"
+          }
+          emit_resolve_live_url_state() {
+            ensure_https_probe_error_summary
+            echo "resolve_live_url_state_host_reachable=$host_reachable"
+            echo "resolve_live_url_state_host_reachability_scheme=$host_reachability_scheme"
+            echo "resolve_live_url_state_live_url=$live_url"
+            echo "resolve_live_url_state_dns_record_matches_ingress=$dns_record_matches_ingress"
+            echo "resolve_live_url_state_dns_expected_ip=$dns_expected_ip"
+            echo "resolve_live_url_state_dns_observed_ip=$dns_observed_ip"
+            echo "resolve_live_url_state_expected_static_ip_address=$expected_static_ip_address"
+            echo "resolve_live_url_state_static_ip_status=$static_ip_status"
+            echo "resolve_live_url_state_static_ip_users=$static_ip_users"
+            echo "resolve_live_url_state_ingress_status_ip=$ingress_status_ip"
+            echo "resolve_live_url_state_ingress_status_ip_matches_static_ip=$ingress_status_ip_matches_static_ip"
+            echo "resolve_live_url_state_static_ip_bound_to_expected_forwarding_rule=$static_ip_bound_to_expected_forwarding_rule"
+            echo "resolve_live_url_state_tls_certificate_status=$tls_certificate_status"
+            echo "resolve_live_url_state_tls_domain_status=$tls_domain_status"
+            echo "resolve_live_url_state_observed_managed_certificate_domains=$observed_managed_certificate_domains"
+            echo "resolve_live_url_state_observed_managed_certificate_status=$observed_managed_certificate_status"
+            echo "resolve_live_url_state_observed_managed_certificate_domain_status=$observed_managed_certificate_domain_status"
+            echo "resolve_live_url_state_https_probe_error_summary=$https_probe_error_summary"
+            echo "resolve_live_url_state_cert_identity_valid=$cert_identity_valid"
+            echo "resolve_live_url_state_deploy_https_ready=$deploy_https_ready"
+            echo "resolve_live_url_state_preview_https_status=$preview_https_status"
+            echo "resolve_live_url_state_preview_http_status=$preview_http_status"
+            echo "resolve_live_url_state_preview_probe_attempt=$preview_probe_attempt"
+            echo "resolve_live_url_state_preview_probe_elapsed_seconds=$preview_probe_elapsed_seconds"
+            echo "resolve_live_url_state_gce_backend_health_status=$gce_backend_health_status"
+            echo "resolve_live_url_state_k8s_endpoint_ready=$k8s_endpoint_ready"
+            echo "resolve_live_url_state_service_probe_status=$service_probe_status"
+            echo "resolve_live_url_state_in_cluster_service_status_code=$in_cluster_service_status_code"
+            echo "resolve_live_url_state_endpoint_probe_status=$endpoint_probe_status"
+            echo "resolve_live_url_state_endpoint_probe_status_code=$endpoint_probe_status_code"
+            echo "resolve_live_url_state_runtime_probe_status=$runtime_probe_status"
+            echo "resolve_live_url_state_pod_restart_detected=$pod_restart_detected"
+          }
+          collect_ingress_502_runtime_diagnostics() {
+            preview_probe_elapsed_seconds=$(( $(date +%s) - resolve_started_at ))
+            if [ "$preview_probe_elapsed_seconds" -lt 0 ]; then
+              preview_probe_elapsed_seconds=0
+            fi
+            echo "Collecting ingress-502 runtime diagnostics for namespace $K8S_NAMESPACE (preview host: $preview_host)."
+            kubectl -n "$K8S_NAMESPACE" get pods -l app.kubernetes.io/name=site-web -o wide || true
+            pods_describe_output="$(mktemp)"
+            kubectl -n "$K8S_NAMESPACE" describe pods -l app.kubernetes.io/name=site-web > "$pods_describe_output" 2>&1 || true
+            print_redacted_file "$pods_describe_output"
+            if grep -qiE 'Restart Count:[[:space:]]*[1-9]|CrashLoopBackOff|Back-off restarting failed container|OOMKilled|Reason:[[:space:]]+Error' "$pods_describe_output"; then
+              pod_restart_detected=true
+            fi
+            rm -f "$pods_describe_output"
+            site_web_logs_output="$(mktemp)"
+            kubectl -n "$K8S_NAMESPACE" logs -l app.kubernetes.io/name=site-web --tail=200 --all-containers=true > "$site_web_logs_output" 2>&1 || true
+            print_redacted_file "$site_web_logs_output"
+            rm -f "$site_web_logs_output"
+            site_web_logs_previous_output="$(mktemp)"
+            kubectl -n "$K8S_NAMESPACE" logs -l app.kubernetes.io/name=site-web --previous --tail=100 --all-containers=true > "$site_web_logs_previous_output" 2>&1 || true
+            print_redacted_file "$site_web_logs_previous_output"
+            rm -f "$site_web_logs_previous_output"
+            deploy_yaml_output="$(mktemp)"
+            kubectl -n "$K8S_NAMESPACE" get deploy site-web -o yaml > "$deploy_yaml_output" 2>&1 || true
+            print_redacted_file "$deploy_yaml_output"
+            rm -f "$deploy_yaml_output"
+            kubectl -n "$K8S_NAMESPACE" get rs -l app.kubernetes.io/name=site-web -o wide || true
+            kubectl -n "$K8S_NAMESPACE" get events --sort-by=.lastTimestamp || true
+            ingress_describe_output_502="$(mktemp)"
+            kubectl -n "$K8S_NAMESPACE" describe ingress site-web > "$ingress_describe_output_502" 2>&1 || true
+            print_redacted_file "$ingress_describe_output_502"
+            if grep -qiE 'HEALTHY' "$ingress_describe_output_502"; then
+              gce_backend_health_status="HEALTHY"
+            elif grep -qiE 'UNHEALTHY|DEGRADED' "$ingress_describe_output_502"; then
+              gce_backend_health_status="UNHEALTHY"
+            else
+              gce_backend_health_status="UNKNOWN"
+            fi
+            rm -f "$ingress_describe_output_502"
+            endpoint_ip="$(kubectl -n "$K8S_NAMESPACE" get endpoints site-web -o jsonpath='{.subsets[0].addresses[0].ip}' 2>/dev/null || true)"
+            if [ -n "$endpoint_ip" ]; then
+              k8s_endpoint_ready="true"
+            else
+              k8s_endpoint_ready="false"
+            fi
+            if [ -n "$preview_host" ]; then
+              preview_headers_output="$(mktemp)"
+              preview_body_output="$(mktemp)"
+              preview_https_status="$(curl --silent --show-error --connect-timeout 5 --max-time 15 -D "$preview_headers_output" -o "$preview_body_output" --write-out '%{http_code}' "https://$preview_host" 2>/dev/null || true)"
+              echo "Preview HTTPS diagnostics status: ${preview_https_status:-unknown}"
+              echo "--- preview HTTPS response headers (redacted) ---"
+              head -n 40 "$preview_headers_output" | redact_sensitive_stream || true
+              echo "--- preview HTTPS response snippet (redacted) ---"
+              head -c 300 "$preview_body_output" | tr -d '\r' | redact_sensitive_stream || true
+              echo
+              rm -f "$preview_headers_output" "$preview_body_output"
+            fi
+            probe_pod="site-web-runtime-probe-${GITHUB_RUN_ID:-run}-${GITHUB_RUN_ATTEMPT:-1}"
+            probe_pod="$(echo "$probe_pod" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-' | cut -c1-63)"
+            kubectl -n "$K8S_NAMESPACE" delete pod "$probe_pod" --ignore-not-found >/dev/null 2>&1 || true
+            service_probe_output="$(mktemp)"
+            if kubectl -n "$K8S_NAMESPACE" run "$probe_pod" --image=curlimages/curl:8.10.1 --restart=Never --attach --command -- sh -c "curl -sS --connect-timeout 5 --max-time 15 --output /tmp/body --write-out '%{http_code}' http://site-web.${K8S_NAMESPACE}.svc.cluster.local:80/" >"$service_probe_output" 2>&1; then
+              in_cluster_service_status_code="$(tr -cd '0-9' < "$service_probe_output" | tail -c 4)"
+              if [ "$in_cluster_service_status_code" = "502" ]; then
+                service_probe_status="http_502"
+              elif echo "$in_cluster_service_status_code" | grep -Eq '^[1-5][0-9][0-9]$'; then
+                service_probe_status="ok"
+              else
+                service_probe_status="unknown_status"
+              fi
+            else
+              service_probe_status="failed"
+              print_redacted_file "$service_probe_output"
+            fi
+            rm -f "$service_probe_output"
+            kubectl -n "$K8S_NAMESPACE" delete pod "$probe_pod" --ignore-not-found >/dev/null 2>&1 || true
+            if [ -n "$endpoint_ip" ]; then
+              endpoint_probe_output="$(mktemp)"
+              if kubectl -n "$K8S_NAMESPACE" run "$probe_pod" --image=curlimages/curl:8.10.1 --restart=Never --attach --command -- sh -c "curl -sS --connect-timeout 5 --max-time 15 --output /tmp/body --write-out '%{http_code}' http://${endpoint_ip}:8080/" >"$endpoint_probe_output" 2>&1; then
+                endpoint_probe_status_code="$(tr -cd '0-9' < "$endpoint_probe_output" | tail -c 4)"
+                if [ "$endpoint_probe_status_code" = "502" ]; then
+                  endpoint_probe_status="http_502"
+                elif echo "$endpoint_probe_status_code" | grep -Eq '^[1-5][0-9][0-9]$'; then
+                  endpoint_probe_status="ok"
+                else
+                  endpoint_probe_status="unknown_status"
+                fi
+              else
+                endpoint_probe_status="failed"
+                print_redacted_file "$endpoint_probe_output"
+              fi
+              rm -f "$endpoint_probe_output"
+            else
+              endpoint_probe_status="endpoint_missing"
+            fi
+            kubectl -n "$K8S_NAMESPACE" delete pod "$probe_pod" --ignore-not-found >/dev/null 2>&1 || true
+            runtime_probe_status="unknown"
+            if [ "$pod_restart_detected" = true ]; then
+              runtime_probe_status="pod_runtime_failure"
+            elif [ "$service_probe_status" = "http_502" ] || [ "$endpoint_probe_status" = "http_502" ]; then
+              runtime_probe_status="app_runtime_response_502"
+            elif [ "$service_probe_status" = "ok" ] && [ "$endpoint_probe_status" = "ok" ] \
+              && [ "$preview_https_status" = "502" ] && [ "$gce_backend_health_status" = "HEALTHY" ]; then
+              runtime_probe_status="ingress_or_edge_convergence"
+            elif [ "$service_probe_status" = "failed" ] || [ "$endpoint_probe_status" = "failed" ]; then
+              runtime_probe_status="service_probe_failed"
+            fi
+            echo "deploy_runtime_reason_context=gce_backend_health=${gce_backend_health_status:-UNKNOWN};k8s_endpoint_ready=${k8s_endpoint_ready:-unknown};preview_https_status=${preview_https_status:-unknown};service_probe_status=${service_probe_status:-unknown};endpoint_probe_status=${endpoint_probe_status:-unknown};runtime_probe_status=${runtime_probe_status:-unknown}"
+          }
+          trap 'resolve_live_url_exit_code=$?; if [ "$resolve_live_url_exit_code" -ne 0 ]; then emit_resolve_live_url_state; fi' EXIT
+          collect_resolve_live_url_evidence() {
+            ingress_host="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)"
+            ingress_ip="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
+            ingress_spec_host="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
+            if [ -z "$preview_host" ] && [ -n "$ingress_spec_host" ]; then
+              preview_host="$ingress_spec_host"
+            fi
+            ingress_status_ip="$ingress_ip"
+            expected_static_ip_name="$(echo "$MBSRN_PREVIEW_STATIC_IP_NAME" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+            ingress_static_ip_annotation="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.metadata.annotations.kubernetes\.io/ingress\.global-static-ip-name}' 2>/dev/null || true)"
+            normalized_ingress_static_ip_annotation="$(echo "$ingress_static_ip_annotation" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+            static_ip_metadata_json="$(gcloud compute addresses describe "$MBSRN_PREVIEW_STATIC_IP_NAME" --global --project "$GKE_PROJECT_ID" --format='json(name,address,status,users)' 2>/dev/null || true)"
+            if [ -n "$static_ip_metadata_json" ]; then
+              static_ip_metadata_eval="$(STATIC_IP_METADATA_JSON="$static_ip_metadata_json" python - <<'PY'
+          import json
+          import os
+
+          raw = str(os.environ.get('STATIC_IP_METADATA_JSON') or '').strip()
+          payload = {}
+          if raw:
+              try:
+                  payload = json.loads(raw)
+              except Exception:
+                  payload = {}
+          address = str(payload.get('address') or '').strip()
+          status = str(payload.get('status') or '').strip().upper()
+          users = payload.get('users')
+          normalized_users = []
+          if isinstance(users, list):
+              for item in users:
+                  candidate = str(item or '').strip()
+                  if candidate:
+                      normalized_users.append(candidate)
+          print(f'address={address}')
+          print(f'status={status}')
+          print('users=' + ','.join(normalized_users))
+          PY
+              )"
+              while IFS='=' read -r key value; do
+                case "$key" in
+                  address)
+                    expected_static_ip_address="$value"
+                    ;;
+                  status)
+                    static_ip_status="$value"
+                    ;;
+                  users)
+                    static_ip_users="$value"
+                    ;;
+                esac
+              done <<< "$static_ip_metadata_eval"
+            fi
+            ingress_status_ip_matches_static_ip=false
+            if [ -n "$expected_static_ip_address" ]; then
+              dns_expected_ip="$expected_static_ip_address"
+              if [ -n "$ingress_status_ip" ] && [ "$ingress_status_ip" = "$expected_static_ip_address" ]; then
+                ingress_status_ip_matches_static_ip=true
+              fi
+            else
+              dns_expected_ip="$ingress_status_ip"
+            fi
+            static_ip_bound_to_expected_forwarding_rule=false
+            if [ -n "$static_ip_users" ] && [ -n "$K8S_NAMESPACE" ]; then
+              static_ip_users_lower="$(echo "$static_ip_users" | tr '[:upper:]' '[:lower:]')"
+              namespace_token="$(echo "$K8S_NAMESPACE" | tr '[:upper:]' '[:lower:]')"
+              if echo "$static_ip_users_lower" | grep -q '/forwardingrules/' \
+                && echo "$static_ip_users_lower" | grep -q "$namespace_token" \
+                && echo "$static_ip_users_lower" | grep -q 'site-web'; then
+                static_ip_bound_to_expected_forwarding_rule=true
+              fi
+            fi
+            dns_observed_ip=""
+            if [ -n "$preview_host" ]; then
+              if command -v dig >/dev/null 2>&1; then
+                dns_observed_ip="$(dig +short "$preview_host" A | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 | tr -d '[:space:]')"
+              fi
+              if [ -z "$dns_observed_ip" ] && command -v nslookup >/dev/null 2>&1; then
+                dns_observed_ip="$(nslookup "$preview_host" 2>/dev/null | awk '/^Address: / {print $2}' | tail -n1 | tr -d '[:space:]')"
+              fi
+            fi
+            if [ -n "$dns_expected_ip" ] && [ -n "$dns_observed_ip" ] && [ "$dns_observed_ip" = "$dns_expected_ip" ]; then
+              dns_record_matches_ingress=true
+            else
+              dns_record_matches_ingress=false
+            fi
+            managed_certificate_json="$(kubectl get managedcertificate "$MBSRN_PREVIEW_CERTIFICATE_NAME" --namespace "$K8S_NAMESPACE" -o json 2>/dev/null || true)"
+            observed_managed_certificate_domains=""
+            observed_managed_certificate_status=""
+            observed_managed_certificate_domain_status=""
+            if [ -n "$managed_certificate_json" ]; then
+              expected_cert_name_collect="$(echo "$MBSRN_PREVIEW_CERTIFICATE_NAME" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+              cert_collect_output="$(MANAGED_CERTIFICATE_JSON="$managed_certificate_json" EXPECTED_PREVIEW_HOST="$preview_host" EXPECTED_CERT_NAME="$expected_cert_name_collect" python - <<'PY'
+          import json
+          import os
+
+          raw = str(os.environ.get('MANAGED_CERTIFICATE_JSON') or '').strip()
+          expected_host = str(os.environ.get('EXPECTED_PREVIEW_HOST') or '').strip().lower()
+          payload = json.loads(raw) if raw else {}
+          spec_domains = [
+              str(item).strip().lower()
+              for item in (payload.get('spec', {}).get('domains') or [])
+              if str(item).strip()
+          ]
+          status_payload = payload.get('status') if isinstance(payload.get('status'), dict) else {}
+          cert_status = str(status_payload.get('certificateStatus') or '').strip().upper()
+          domain_status_payload = status_payload.get('domainStatus')
+          domain_status_map = {}
+          if isinstance(domain_status_payload, list):
+              for item in domain_status_payload:
+                  if not isinstance(item, dict):
+                      continue
+                  domain = str(item.get('domain') or '').strip().lower()
+                  status = str(item.get('status') or '').strip().upper()
+                  if domain:
+                      domain_status_map[domain] = status
+          elif isinstance(domain_status_payload, dict):
+              for key, value in domain_status_payload.items():
+                  domain = str(key or '').strip().lower()
+                  if not domain:
+                      continue
+                  if isinstance(value, dict):
+                      status = str(value.get('status') or '').strip().upper()
+                  else:
+                      status = str(value or '').strip().upper()
+                  domain_status_map[domain] = status
+          domain_status = domain_status_map.get(expected_host, '') if expected_host else ''
+          domain_exact_match = bool(expected_host) and len(spec_domains) == 1 and spec_domains[0] == expected_host
+          print(f'cert_status={cert_status}')
+          print(f'domain_status={domain_status}')
+          print('domain_exact_match=' + ('true' if domain_exact_match else 'false'))
+          print('spec_domains=' + ','.join(spec_domains))
+          PY
+              )"
+              domain_exact_match=false
+              while IFS='=' read -r key value; do
+                case "$key" in
+                  cert_status)
+                    tls_certificate_status="$value"
+                    ;;
+                  domain_status)
+                    tls_domain_status="$value"
+                    ;;
+                  domain_exact_match)
+                    domain_exact_match="$value"
+                    ;;
+                  spec_domains)
+                    observed_managed_certificate_domains="$value"
+                    ;;
+                esac
+              done <<< "$cert_collect_output"
+              normalized_cert_status="$(echo "$tls_certificate_status" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+              normalized_domain_status="$(echo "$tls_domain_status" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+              if [ -z "$observed_managed_certificate_domains" ] && [ "$domain_exact_match" = "true" ] && [ -n "$preview_host" ]; then
+                observed_managed_certificate_domains="$preview_host"
+              fi
+              observed_managed_certificate_status="$tls_certificate_status"
+              observed_managed_certificate_domain_status="$tls_domain_status"
+              if [ "$domain_exact_match" = "true" ]; then
+                cert_identity_valid=true
+              else
+                cert_identity_valid=false
+              fi
+            fi
+          }
+          for attempt in $(seq 1 "$max_attempts"); do
+            preview_probe_attempt="$attempt"
+            ingress_host="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)"
+            ingress_ip="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
+            ingress_spec_host="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)"
+            if [ -z "$preview_host" ] && [ -n "$ingress_spec_host" ]; then
+              preview_host="$ingress_spec_host"
+            fi
+            if [ -n "$preview_host" ]; then
+              https_probe_output="$(mktemp)"
+              https_probe_attempted=true
+              if https_code="$(curl --silent --show-error --connect-timeout 5 --max-time 10 --output /dev/null --write-out '%{http_code}' "https://$preview_host" 2>"$https_probe_output")"; then
+                if echo "$https_code" | grep -Eq '^[1-5][0-9][0-9]$'; then
+                  preview_https_status="$https_code"
+                  if [ "$https_code" = "502" ]; then
+                    backend_502_detected=true
+                    set_https_probe_error_summary "ingress_backend_502" "" "$https_code" "$https_probe_output"
+                    echo "deploy_runtime_reason_code=ingress_backend_502"
+                    echo "Expected preview hostname responded with ${https_code} over HTTPS, indicating backend unhealthy state."
+                    rm -f "$https_probe_output"
+                    break
+                  fi
+                  host_reachable=true
+                  host_reachability_scheme="https"
+                  rm -f "$https_probe_output"
+                  echo "Expected preview hostname responded over HTTPS on attempt ${attempt}/${max_attempts} with status ${https_code}."
+                  break
+                fi
+              else
+                https_exit=$?
+                if [ "$https_exit" -eq 60 ] || grep -qiE 'SSL certificate problem|SSL_ERROR_BAD_CERT_DOMAIN|certificate subject name|no alternative certificate subject name' "$https_probe_output"; then
+                  tls_mismatch_detected=true
+                  echo "Expected preview hostname is reachable but TLS certificate does not match."
+                  echo "deploy_runtime_reason_code=reachable_but_tls_certificate_mismatch"
+                  set_https_probe_error_summary "reachable_but_tls_certificate_mismatch" "$https_exit" "" "$https_probe_output"
+                  cat "$https_probe_output"
+                  rm -f "$https_probe_output"
+                  break
+                fi
+              fi
+              rm -f "$https_probe_output"
+              http_fallback_attempted=true
+              http_code="$(curl --silent --show-error --connect-timeout 5 --max-time 10 --output /dev/null --write-out '%{http_code}' "http://$preview_host" 2>/dev/null || true)"
+              if echo "$http_code" | grep -Eq '^[1-5][0-9][0-9]$'; then
+                preview_http_status="$http_code"
+                if [ "$http_code" = "502" ]; then
+                  backend_502_detected=true
+                  set_https_probe_error_summary "ingress_backend_502" "" "$http_code" ""
+                  echo "deploy_runtime_reason_code=ingress_backend_502"
+                  echo "Expected preview hostname responded with ${http_code} over HTTP, indicating backend unhealthy state."
+                  break
+                fi
+                host_reachable=true
+                host_reachability_scheme="http"
+                echo "Expected preview hostname responded over HTTP on attempt ${attempt}/${max_attempts} with status ${http_code}."
+                echo "deploy_runtime_reason_code=ingress_address_pending_but_hostname_reachable"
+                break
+              fi
+            fi
+            if [ -n "$ingress_host" ] || [ -n "$ingress_ip" ]; then
+              echo "Ingress external address resolved on attempt ${attempt}/${max_attempts}."
+              break
+            fi
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              echo "Ingress external address not ready yet (attempt ${attempt}/${max_attempts}); sleeping ${sleep_seconds}s."
+              sleep "$sleep_seconds"
+            fi
+          done
+          collect_resolve_live_url_evidence
+          if [ "$tls_mismatch_detected" = true ]; then
+            normalized_cert_status_early="$(echo "$tls_certificate_status" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+            normalized_domain_status_early="$(echo "$tls_domain_status" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+            if [ "$normalized_domain_status_early" = "FAILED_NOT_VISIBLE" ] || [ "$normalized_cert_status_early" = "FAILED_NOT_VISIBLE" ]; then
+              echo "deploy_runtime_reason_code=managed_certificate_failed_not_visible"
+              echo "deploy_runtime_reason_message=ManagedCertificate is not visible; verify DNS and load balancer exposure."
+            elif [ "$normalized_domain_status_early" = "PROVISIONING" ] || [ "$normalized_cert_status_early" = "PROVISIONING" ] || [ "$normalized_domain_status_early" = "" ] || [ "$normalized_domain_status_early" = "UNKNOWN" ] || [ "$normalized_cert_status_early" = "UNKNOWN" ]; then
+              echo "deploy_runtime_reason_code=managed_certificate_pending"
+              echo "deploy_runtime_reason_code=tls_certificate_provisioning"
+              echo "deploy_runtime_reason_message=ManagedCertificate provisioning/status is still pending for expected hostname."
+            else
+              echo "deploy_runtime_reason_code=tls_certificate_bound_to_wrong_site"
+              echo "deploy_runtime_reason_code=reachable_but_tls_certificate_mismatch"
+              echo "deploy_runtime_reason_message=Expected hostname is reachable but TLS certificate is bound to another site."
+            fi
+            kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl describe ingress site-web --namespace "$K8S_NAMESPACE" || true
+            kubectl describe managedcertificate "$MBSRN_PREVIEW_CERTIFICATE_NAME" --namespace "$K8S_NAMESPACE" || true
+            exit 1
+          fi
+          if [ "$backend_502_detected" = true ]; then
+            if [ -z "$https_probe_error_summary" ]; then
+              set_https_probe_error_summary "ingress_backend_502" "" "502" ""
+            fi
+            collect_ingress_502_runtime_diagnostics
+            if [ "$gce_backend_health_status" = "HEALTHY" ] && [ "$service_probe_status" = "ok" ] && [ "$preview_https_status" = "502" ]; then
+              echo "deploy_runtime_reason_message=Preview hostname is reachable but returns HTTP 502 while GCE backend reports HEALTHY and in-cluster probes succeed. Likely ingress/LB edge convergence or stale backend path."
+            elif [ "$service_probe_status" = "http_502" ] || [ "$endpoint_probe_status" = "http_502" ]; then
+              echo "deploy_runtime_reason_message=Preview hostname is reachable but returns HTTP 502 and in-cluster service/endpoint probes also return 502. Likely app runtime response failure."
+            elif [ "$pod_restart_detected" = true ]; then
+              echo "deploy_runtime_reason_message=Preview hostname is reachable but returns HTTP 502 with pod restart/crash evidence. Likely pod runtime instability."
+            else
+              echo "deploy_runtime_reason_message=Ingress hostname is reachable but backend returned 5xx. Review pod logs, in-cluster service probe status, endpoint probe status, and backend health evidence."
+            fi
+            kubectl get service site-web --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl describe service site-web --namespace "$K8S_NAMESPACE" || true
+            kubectl get endpoints site-web --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl get endpointslice --namespace "$K8S_NAMESPACE" -l kubernetes.io/service-name=site-web -o wide || true
+            kubectl describe ingress site-web --namespace "$K8S_NAMESPACE" || true
+            kubectl describe backendconfig "$MBSRN_BACKEND_CONFIG_NAME" --namespace "$K8S_NAMESPACE" || true
+            exit 1
+          fi
+          if [ "$host_reachable" = true ] && [ -n "$preview_host" ]; then
+            if [ "$host_reachability_scheme" = "http" ]; then
+              live_url="http://$preview_host"
+            else
+              live_url="https://$preview_host"
+            fi
+          elif [ -n "$preview_host" ]; then
+            live_url="https://$preview_host"
+          elif [ -n "$ingress_host" ]; then
+            live_url="https://$ingress_host"
+          elif [ -n "$ingress_ip" ]; then
+            live_url="http://$ingress_ip"
+          fi
+          if [ -z "$live_url" ]; then
+            if [ "$https_probe_attempted" != "true" ]; then
+              https_probe_error_summary="reason=https_probe_not_attempted;detail=https_probe_not_attempted"
+              echo "deploy_runtime_reason_code=https_probe_not_attempted"
+            fi
+            echo "Ingress created but external address is not assigned yet for namespace $K8S_NAMESPACE."
+            echo "Likely rollout blocker: ingress/load balancer provisioning still in progress."
+            echo "This may take several minutes on GKE."
+            echo "deploy_runtime_reason_code=ingress_address_pending"
+            echo "deploy_runtime_reason_message=Ingress created but external address not yet assigned."
+            kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl describe ingress site-web --namespace "$K8S_NAMESPACE" || true
+            kubectl get service site-web --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl get endpoints site-web --namespace "$K8S_NAMESPACE" -o wide || true
+            kubectl get endpointslice --namespace "$K8S_NAMESPACE" -l kubernetes.io/service-name=site-web -o wide || true
+            kubectl get managedcertificate "$MBSRN_PREVIEW_CERTIFICATE_NAME" --namespace "$K8S_NAMESPACE" || true
+            managedcertificate_pending_output="$(mktemp)"
+            kubectl describe managedcertificate "$MBSRN_PREVIEW_CERTIFICATE_NAME" --namespace "$K8S_NAMESPACE" > "$managedcertificate_pending_output" 2>&1 || true
+            cat "$managedcertificate_pending_output"
+            if grep -qiE 'failednotvisible' "$managedcertificate_pending_output"; then
+              echo "deploy_runtime_reason_code=managed_certificate_failed_not_visible"
+            fi
+            rm -f "$managedcertificate_pending_output"
+            ingress_pending_output="$(mktemp)"
+            kubectl describe ingress site-web --namespace "$K8S_NAMESPACE" > "$ingress_pending_output" 2>&1 || true
+            cat "$ingress_pending_output"
+            if grep -qiE 'NEG|network endpoint group|load balancer|loadbalancer|creating|attaching|detaching|sync|provisioning|reconcile' "$ingress_pending_output"; then
+              echo "deploy_runtime_reason_code=ingress_neg_convergence_pending"
+            fi
+            if grep -qiE 'in-use and would result in a conflict|global static ip.*conflict|specified ip address is in-use' "$ingress_pending_output"; then
+              echo "deploy_runtime_reason_code=ingress_static_ip_conflict"
+            fi
+            pre_shared_pending_annotation="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.metadata.annotations.ingress\.gcp\.kubernetes\.io/pre-shared-cert}' 2>/dev/null || true)"
+            if [ -n "$pre_shared_pending_annotation" ]; then
+              echo "Observed ingress pre-shared certificate controller metadata: $pre_shared_pending_annotation"
+              expected_cert_name_pending="$(echo "$MBSRN_PREVIEW_CERTIFICATE_NAME" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+              pre_shared_pending_values="$(echo "$pre_shared_pending_annotation" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | tr '[:upper:]' '[:lower:]')"
+              pre_shared_pending_count="$(echo "$pre_shared_pending_values" | sed '/^$/d' | wc -l | tr -d '[:space:]')"
+              pre_shared_pending_first="$(echo "$pre_shared_pending_values" | head -n1 | tr -d '[:space:]')"
+              pre_shared_pending_metadata_mismatch=false
+              if [ "$pre_shared_pending_count" -ne 1 ] || [ "$pre_shared_pending_first" != "$expected_cert_name_pending" ]; then
+                pre_shared_pending_metadata_mismatch=true
+              fi
+              if [ "$pre_shared_pending_metadata_mismatch" = true ]; then
+                echo "deploy_runtime_reason_code=pre_shared_cert_metadata_mismatch"
+              fi
+            fi
+            rm -f "$ingress_pending_output"
+            kubectl get frontendconfig "$MBSRN_FRONTEND_CONFIG_NAME" --namespace "$K8S_NAMESPACE" || true
+            kubectl get backendconfig "$MBSRN_BACKEND_CONFIG_NAME" --namespace "$K8S_NAMESPACE" || true
+            exit 1
+          fi
+          if [ -z "$preview_host" ]; then
+            if [ "$https_probe_attempted" != "true" ]; then
+              https_probe_error_summary="reason=https_probe_not_attempted;detail=preview_host_missing"
+              echo "deploy_runtime_reason_code=https_probe_not_attempted"
+            fi
+            echo "deploy_runtime_reason_code=ingress_address_pending"
+            echo "deploy_runtime_reason_message=Preview hostname is missing; cannot validate DNS/TLS identity."
+            exit 1
+          fi
+          if [ "$host_reachable" = true ] && [ "$host_reachability_scheme" = "https" ] && [ -z "$ingress_ip" ]; then
+            ingress_ip="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
+            ingress_host="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)"
+            if [ -n "$ingress_ip" ] || [ -n "$ingress_host" ]; then
+              echo "Ingress external address observed after HTTPS success verification."
+            fi
+          fi
+          if [ -z "$ingress_ip" ] && [ "$host_reachable" != "true" ]; then
+            echo "deploy_runtime_reason_code=ingress_address_pending"
+            echo "deploy_runtime_reason_message=Ingress external IP is required before DNS/TLS validation."
+            exit 1
+          fi
+          ingress_status_ip="$ingress_ip"
+          dns_expected_ip="$ingress_status_ip"
+          expected_static_ip_name="$(echo "$MBSRN_PREVIEW_STATIC_IP_NAME" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+          ingress_static_ip_annotation="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.metadata.annotations.kubernetes\.io/ingress\.global-static-ip-name}' 2>/dev/null || true)"
+          normalized_ingress_static_ip_annotation="$(echo "$ingress_static_ip_annotation" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+          echo "expected_static_ip_name=$expected_static_ip_name"
+          echo "observed_ingress_static_ip_annotation=$ingress_static_ip_annotation"
+          if [ -z "$normalized_ingress_static_ip_annotation" ]; then
+            ingress_conflict_detected=true
+            echo "deploy_runtime_reason_code=expected_static_ip_not_bound_to_ingress"
+            echo "deploy_runtime_reason_message=Ingress is missing expected per-site static IP annotation binding."
+            exit 1
+          fi
+          if [ "$normalized_ingress_static_ip_annotation" != "$expected_static_ip_name" ]; then
+            ingress_conflict_detected=true
+            echo "deploy_runtime_reason_code=ingress_static_ip_conflict"
+            echo "deploy_runtime_reason_code=shared_static_ip_not_allowed_for_per_site_ingress"
+            echo "deploy_runtime_reason_message=Ingress static IP annotation does not match expected per-site static IP name."
+            exit 1
+          fi
+          static_ip_metadata_json="$(gcloud compute addresses describe "$MBSRN_PREVIEW_STATIC_IP_NAME" --global --project "$GKE_PROJECT_ID" --format='json(name,address,status,users)' 2>/dev/null || true)"
+          if [ -n "$static_ip_metadata_json" ]; then
+            static_ip_metadata_eval="$(STATIC_IP_METADATA_JSON="$static_ip_metadata_json" python - <<'PY'
+          import json
+          import os
+
+          raw = str(os.environ.get('STATIC_IP_METADATA_JSON') or '').strip()
+          payload = {}
+          if raw:
+              try:
+                  payload = json.loads(raw)
+              except Exception:
+                  payload = {}
+          address = str(payload.get('address') or '').strip()
+          status = str(payload.get('status') or '').strip().upper()
+          users = payload.get('users')
+          normalized_users = []
+          if isinstance(users, list):
+              for item in users:
+                  candidate = str(item or '').strip()
+                  if candidate:
+                      normalized_users.append(candidate)
+          print(f'address={address}')
+          print(f'status={status}')
+          print('users=' + ','.join(normalized_users))
+          PY
+            )"
+            while IFS='=' read -r key value; do
+              case "$key" in
+                address)
+                  expected_static_ip_address="$value"
+                  ;;
+                status)
+                  static_ip_status="$value"
+                  ;;
+                users)
+                  static_ip_users="$value"
+                  ;;
+              esac
+            done <<EOF
+          $static_ip_metadata_eval
+          EOF
+          fi
+          if [ -n "$expected_static_ip_address" ]; then
+            dns_expected_ip="$expected_static_ip_address"
+            if [ -n "$ingress_status_ip" ] && [ "$ingress_status_ip" = "$expected_static_ip_address" ]; then
+              ingress_status_ip_matches_static_ip=true
+            fi
+          fi
+          namespace_binding_token="$(echo "$K8S_NAMESPACE" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')"
+          if [ -n "$static_ip_users" ] && [ -n "$namespace_binding_token" ]; then
+            static_ip_users_lower="$(echo "$static_ip_users" | tr '[:upper:]' '[:lower:]')"
+            while IFS= read -r static_user_entry; do
+              if [ -z "$static_user_entry" ]; then
+                continue
+              fi
+              if echo "$static_user_entry" | grep -Fq '/global/forwardingRules/' \
+                && echo "$static_user_entry" | grep -Fq 'site-web' \
+                && echo "$static_user_entry" | grep -Fq "$namespace_binding_token"; then
+                static_ip_bound_to_expected_forwarding_rule=true
+                break
+              fi
+            done <<EOF
+          $(echo "$static_ip_users_lower" | tr ',' '\n')
+          EOF
+          fi
+          if [ -n "$expected_static_ip_address" ]; then
+            if [ "$static_ip_status" != "IN_USE" ] || [ "$static_ip_bound_to_expected_forwarding_rule" != "true" ]; then
+              ingress_conflict_detected=true
+              echo "deploy_runtime_reason_code=expected_static_ip_not_bound_to_ingress"
+              echo "deploy_runtime_reason_message=Reserved per-site static IP is not yet bound to expected forwarding rules for this site ingress."
+              echo "expected_static_ip_address=$expected_static_ip_address"
+              echo "static_ip_status=$static_ip_status"
+              echo "static_ip_users=$static_ip_users"
+              exit 1
+            fi
+          fi
+          if [ -z "$dns_expected_ip" ]; then
+            echo "deploy_runtime_reason_code=ingress_address_pending"
+            echo "deploy_runtime_reason_message=Neither ingress status IP nor reserved static IP address is available for DNS/TLS validation yet."
+            exit 1
+          fi
+          ingress_validation_output="$(mktemp)"
+          kubectl describe ingress site-web --namespace "$K8S_NAMESPACE" > "$ingress_validation_output" 2>&1 || true
+          if grep -qiE 'in-use and would result in a conflict|global static ip.*conflict|specified ip address is in-use' "$ingress_validation_output"; then
+            ingress_conflict_detected=true
+            echo "deploy_runtime_reason_code=ingress_static_ip_conflict"
+            cat "$ingress_validation_output"
+            rm -f "$ingress_validation_output"
+            exit 1
+          fi
+          rm -f "$ingress_validation_output"
+          expected_cert_name="$(echo "$MBSRN_PREVIEW_CERTIFICATE_NAME" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+          pre_shared_cert_metadata_mismatch=false
+          pre_shared_cert_controller_cross_site_evidence=false
+          managed_cert_annotation="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.metadata.annotations.networking\.gke\.io/managed-certificates}' 2>/dev/null || true)"
+          echo "managed_certificate_resource_name=$MBSRN_PREVIEW_CERTIFICATE_NAME"
+          echo "expected_preview_hostname=$preview_host"
+          echo "expected_managed_certificate_name=$expected_cert_name"
+          echo "observed_managed_certificate_annotation=$managed_cert_annotation"
+          managed_cert_annotation_values="$(echo "$managed_cert_annotation" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | tr '[:upper:]' '[:lower:]')"
+          managed_cert_annotation_count="$(echo "$managed_cert_annotation_values" | sed '/^$/d' | wc -l | tr -d '[:space:]')"
+          managed_cert_annotation_first="$(echo "$managed_cert_annotation_values" | head -n1 | tr -d '[:space:]')"
+          if [ "$managed_cert_annotation_count" -le 0 ]; then
+            echo "deploy_runtime_reason_code=ingress_certificate_annotation_mismatch"
+            echo "deploy_runtime_reason_message=Ingress is missing managed certificate annotation."
+            exit 1
+          fi
+          if [ "$managed_cert_annotation_count" -gt 1 ]; then
+            echo "deploy_runtime_reason_code=managed_certificate_identity_mismatch"
+            echo "deploy_runtime_reason_message=Ingress annotation references multiple managed certificates."
+            exit 1
+          fi
+          if [ "$managed_cert_annotation_first" != "$expected_cert_name" ]; then
+            echo "deploy_runtime_reason_code=ingress_certificate_annotation_mismatch"
+            echo "deploy_runtime_reason_message=Ingress managed certificate annotation does not match expected site certificate."
+            exit 1
+          fi
+          pre_shared_cert_annotation="$(kubectl get ingress site-web --namespace "$K8S_NAMESPACE" -o jsonpath='{.metadata.annotations.ingress\.gcp\.kubernetes\.io/pre-shared-cert}' 2>/dev/null || true)"
+          if [ -n "$pre_shared_cert_annotation" ]; then
+            echo "observed_pre_shared_cert_annotation=$pre_shared_cert_annotation"
+            pre_shared_values="$(echo "$pre_shared_cert_annotation" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | tr '[:upper:]' '[:lower:]')"
+            pre_shared_count="$(echo "$pre_shared_values" | sed '/^$/d' | wc -l | tr -d '[:space:]')"
+            pre_shared_first="$(echo "$pre_shared_values" | head -n1 | tr -d '[:space:]')"
+            if [ "$pre_shared_count" -ne 1 ] || [ "$pre_shared_first" != "$expected_cert_name" ]; then
+              pre_shared_cert_metadata_mismatch=true
+            fi
+            if echo "$pre_shared_values" | grep -qiE '^site-web-preview-cert-'; then
+              if ! echo "$pre_shared_values" | grep -qx "$expected_cert_name"; then
+                pre_shared_cert_controller_cross_site_evidence=true
+              fi
+            fi
+            if [ "$pre_shared_cert_metadata_mismatch" = true ]; then
+              echo "deploy_runtime_reason_code=pre_shared_cert_metadata_mismatch"
+              echo "Pre-shared cert annotation is controller metadata and does not block deploy by itself; relying on managed-certificate annotation/domain/TLS checks."
+            fi
+          fi
+          dns_ip=""
+          if command -v dig >/dev/null 2>&1; then
+            dns_ip="$(dig +short "$preview_host" A | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 | tr -d '[:space:]')"
+          fi
+          if [ -z "$dns_ip" ] && command -v nslookup >/dev/null 2>&1; then
+            dns_ip="$(nslookup "$preview_host" 2>/dev/null | awk '/^Address: / {print $2}' | tail -n1 | tr -d '[:space:]')"
+          fi
+          dns_observed_ip="$dns_ip"
+          if [ -z "$dns_observed_ip" ] || [ "$dns_observed_ip" != "$dns_expected_ip" ]; then
+            dns_record_matches_ingress=false
+            echo "deploy_runtime_reason_code=dns_record_mismatch"
+            if [ -z "$dns_observed_ip" ]; then
+              echo "deploy_runtime_reason_code=ingress_ip_assigned_but_dns_not_updated"
+            else
+              echo "deploy_runtime_reason_code=dns_points_to_old_ingress_ip"
+            fi
+            echo "deploy_runtime_reason_message=DNS A record does not match expected DNS target IP for preview hostname."
+            echo "expected_hostname=$preview_host"
+            echo "dns_expected_ip=$dns_expected_ip"
+            echo "ingress_ip=$ingress_status_ip"
+            echo "observed_dns_ip=$dns_observed_ip"
+            if [ -n "$expected_static_ip_address" ]; then
+              echo "expected_static_ip_address=$expected_static_ip_address"
+              echo "static_ip_status=$static_ip_status"
+              echo "static_ip_users=$static_ip_users"
+            fi
+            exit 1
+          fi
+          dns_record_matches_ingress=true
+          if [ -n "$expected_static_ip_address" ] \
+            && [ "$ingress_status_ip_matches_static_ip" != "true" ] \
+            && [ "$static_ip_status" = "IN_USE" ] \
+            && [ "$static_ip_bound_to_expected_forwarding_rule" = "true" ]; then
+            echo "deploy_runtime_reason_code=ingress_status_ip_stale_or_mismatched"
+            echo "Ingress status IP differs from reserved static IP, but reserved static IP is bound and DNS already matches expected static IP."
+          fi
+          managed_certificate_json="$(kubectl get managedcertificate "$MBSRN_PREVIEW_CERTIFICATE_NAME" --namespace "$K8S_NAMESPACE" -o json 2>/dev/null || true)"
+          if [ -z "$managed_certificate_json" ]; then
+            echo "deploy_runtime_reason_code=ingress_certificate_annotation_mismatch"
+            echo "deploy_runtime_reason_message=Expected ManagedCertificate resource was not found in namespace."
+            exit 1
+          fi
+          evaluate_managed_certificate() {
+            local managed_certificate_payload="$1"
+            MANAGED_CERTIFICATE_JSON="$managed_certificate_payload" EXPECTED_PREVIEW_HOST="$preview_host" EXPECTED_CERT_NAME="$expected_cert_name" python - <<'PY'
+          import json
+          import os
+
+          raw = str(os.environ.get('MANAGED_CERTIFICATE_JSON') or '').strip()
+          expected_host = str(os.environ.get('EXPECTED_PREVIEW_HOST') or '').strip().lower()
+          expected_cert_name = str(os.environ.get('EXPECTED_CERT_NAME') or '').strip().lower()
+          payload = json.loads(raw) if raw else {}
+          resource_name = str((payload.get('metadata') or {}).get('name') or '').strip().lower()
+          spec_domains = [
+              str(item).strip().lower()
+              for item in (payload.get('spec', {}).get('domains') or [])
+              if str(item).strip()
+          ]
+          status_payload = payload.get('status') if isinstance(payload.get('status'), dict) else {}
+          cert_status = str(status_payload.get('certificateStatus') or '').strip().upper()
+          domain_status_payload = status_payload.get('domainStatus')
+          domain_status_map = {}
+          if isinstance(domain_status_payload, list):
+              for item in domain_status_payload:
+                  if not isinstance(item, dict):
+                      continue
+                  domain = str(item.get('domain') or '').strip().lower()
+                  status = str(item.get('status') or '').strip().upper()
+                  if domain:
+                      domain_status_map[domain] = status
+          elif isinstance(domain_status_payload, dict):
+              for key, value in domain_status_payload.items():
+                  domain = str(key or '').strip().lower()
+                  if not domain:
+                      continue
+                  if isinstance(value, dict):
+                      status = str(value.get('status') or '').strip().upper()
+                  else:
+                      status = str(value or '').strip().upper()
+                  domain_status_map[domain] = status
+
+          domain_status = domain_status_map.get(expected_host, '')
+          domain_exact_match = len(spec_domains) == 1 and spec_domains[0] == expected_host
+          resource_name_matches_expected = bool(resource_name and expected_cert_name and resource_name == expected_cert_name)
+          print(f'cert_status={cert_status}')
+          print(f'domain_status={domain_status}')
+          print('domain_exact_match=' + ('true' if domain_exact_match else 'false'))
+          print(f'resource_name={resource_name}')
+          print('resource_name_matches_expected=' + ('true' if resource_name_matches_expected else 'false'))
+          print('domain_count=' + str(len(spec_domains)))
+          print('spec_domains=' + ','.join(spec_domains))
+          PY
+          }
+          apply_managed_certificate_eval_output() {
+            local cert_eval_payload="$1"
+            domain_exact_match=false
+            resource_name_matches_expected=false
+            cert_resource_name=""
+            observed_managed_certificate_domains=""
+            while IFS='=' read -r key value; do
+              case "$key" in
+                cert_status)
+                  tls_certificate_status="$value"
+                  ;;
+                domain_status)
+                  tls_domain_status="$value"
+                  ;;
+                domain_exact_match)
+                  domain_exact_match="$value"
+                  ;;
+                resource_name)
+                  cert_resource_name="$value"
+                  ;;
+                resource_name_matches_expected)
+                  resource_name_matches_expected="$value"
+                  ;;
+                spec_domains)
+                  observed_managed_certificate_domains="$value"
+                  ;;
+              esac
+            done <<< "$cert_eval_payload"
+            normalized_cert_status="$(echo "$tls_certificate_status" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+            normalized_domain_status="$(echo "$tls_domain_status" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
+            if [ -z "$observed_managed_certificate_domains" ] && [ "$domain_exact_match" = "true" ] && [ -n "$preview_host" ]; then
+              observed_managed_certificate_domains="$preview_host"
+            fi
+            observed_managed_certificate_status="$tls_certificate_status"
+            observed_managed_certificate_domain_status="$tls_domain_status"
+            if [ -z "$cert_resource_name" ]; then
+              cert_resource_name="$MBSRN_PREVIEW_CERTIFICATE_NAME"
+            fi
+            echo "observed_managed_certificate_domains=$observed_managed_certificate_domains"
+            echo "observed_managed_certificate_status=$observed_managed_certificate_status"
+            echo "observed_managed_certificate_domain_status=$observed_managed_certificate_domain_status"
+          }
+          cert_eval_output="$(evaluate_managed_certificate "$managed_certificate_json")"
+          apply_managed_certificate_eval_output "$cert_eval_output"
+          managed_certificate_metadata_available=false
+          if [ -n "$observed_managed_certificate_domains" ] || [ -n "$observed_managed_certificate_status" ] || [ -n "$observed_managed_certificate_domain_status" ]; then
+            managed_certificate_metadata_available=true
+          fi
+          if [ "$domain_exact_match" != "true" ]; then
+            cert_identity_valid=false
+            if [ "$managed_certificate_metadata_available" != "true" ] \
+              && [ "$host_reachable" = true ] \
+              && [ "$host_reachability_scheme" = "https" ] \
+              && [ "$dns_record_matches_ingress" = "true" ] \
+              && [ "$managed_cert_annotation_first" = "$expected_cert_name" ]; then
+              cert_identity_valid=true
+              echo "deploy_runtime_reason_code=managed_certificate_metadata_unavailable"
+              echo "deploy_runtime_reason_message=ManagedCertificate metadata unavailable from cluster API; HTTPS certificate identity and ingress annotation evidence are valid."
+            else
+              if [ "$resource_name_matches_expected" != "true" ]; then
+                if [ "$pre_shared_cert_controller_cross_site_evidence" = true ]; then
+                  echo "deploy_runtime_reason_code=stale_pre_shared_cert_binding_detected"
+                fi
+                echo "deploy_runtime_reason_code=tls_certificate_bound_to_wrong_site"
+                echo "deploy_runtime_reason_message=ManagedCertificate resource identity does not match expected deterministic certificate name."
+                exit 1
+              fi
+              echo "deploy_runtime_reason_code=managed_certificate_domain_drift_repaired"
+              echo "deploy_runtime_reason_message=ManagedCertificate domain drift detected for expected certificate resource; attempting safe delete/recreate repair."
+              if ! kubectl delete managedcertificate "$MBSRN_PREVIEW_CERTIFICATE_NAME" --namespace "$K8S_NAMESPACE" --ignore-not-found=true; then
+                if [ "$pre_shared_cert_controller_cross_site_evidence" = true ]; then
+                  echo "deploy_runtime_reason_code=stale_pre_shared_cert_binding_detected"
+                fi
+                echo "deploy_runtime_reason_code=managed_certificate_domain_drift_repair_failed"
+                echo "deploy_runtime_reason_code=tls_certificate_bound_to_wrong_site"
+                echo "deploy_runtime_reason_message=ManagedCertificate domain drift repair could not delete expected certificate resource."
+                exit 1
+              fi
+              if ! kubectl apply -f k8s/managedcertificate.yaml --namespace "$K8S_NAMESPACE"; then
+                if [ "$pre_shared_cert_controller_cross_site_evidence" = true ]; then
+                  echo "deploy_runtime_reason_code=stale_pre_shared_cert_binding_detected"
+                fi
+                echo "deploy_runtime_reason_code=managed_certificate_domain_drift_repair_failed"
+                echo "deploy_runtime_reason_code=tls_certificate_bound_to_wrong_site"
+                echo "deploy_runtime_reason_message=ManagedCertificate domain drift repair could not re-apply expected certificate manifest."
+                exit 1
+              fi
+              kubectl apply -f k8s/ingress.yaml --namespace "$K8S_NAMESPACE" >/dev/null 2>&1 || true
+              repair_attempt=1
+              repair_max_attempts=20
+              repair_sleep_seconds=15
+              repair_converged=false
+              while [ "$repair_attempt" -le "$repair_max_attempts" ]; do
+                managed_certificate_json="$(kubectl get managedcertificate "$MBSRN_PREVIEW_CERTIFICATE_NAME" --namespace "$K8S_NAMESPACE" -o json 2>/dev/null || true)"
+                if [ -n "$managed_certificate_json" ]; then
+                  cert_eval_output="$(evaluate_managed_certificate "$managed_certificate_json")"
+                  apply_managed_certificate_eval_output "$cert_eval_output"
+                  if [ -n "$observed_managed_certificate_domains" ] || [ -n "$observed_managed_certificate_status" ] || [ -n "$observed_managed_certificate_domain_status" ]; then
+                    managed_certificate_metadata_available=true
+                  fi
+                  if [ "$domain_exact_match" = "true" ]; then
+                    repair_converged=true
+                    break
+                  fi
+                fi
+                if [ "$repair_attempt" -lt "$repair_max_attempts" ]; then
+                  sleep "$repair_sleep_seconds"
+                fi
+                repair_attempt=$((repair_attempt + 1))
+              done
+              if [ "$repair_converged" != "true" ]; then
+                if [ "$pre_shared_cert_controller_cross_site_evidence" = true ]; then
+                  echo "deploy_runtime_reason_code=stale_pre_shared_cert_binding_detected"
+                fi
+                echo "deploy_runtime_reason_code=managed_certificate_domain_drift_repair_failed"
+                echo "deploy_runtime_reason_code=tls_certificate_bound_to_wrong_site"
+                echo "deploy_runtime_reason_message=ManagedCertificate domain drift persisted after safe repair attempt."
+                exit 1
+              fi
+            fi
+          fi
+          if [ "$domain_exact_match" = "true" ]; then
+            cert_identity_valid=true
+          fi
+          if [ "$managed_certificate_metadata_available" = "true" ] && ( [ "$normalized_domain_status" = "FAILED_NOT_VISIBLE" ] || [ "$normalized_cert_status" = "FAILED_NOT_VISIBLE" ] ); then
+            echo "deploy_runtime_reason_code=managed_certificate_failed_not_visible"
+            echo "deploy_runtime_reason_message=ManagedCertificate is not visible; verify DNS and load balancer exposure."
+            if [ "$dns_record_matches_ingress" != "true" ]; then
+              echo "deploy_runtime_reason_code=dns_record_mismatch"
+            fi
+            exit 1
+          fi
+          if [ "$managed_certificate_metadata_available" = "true" ] && ( [ "$normalized_domain_status" = "PROVISIONING" ] || [ "$normalized_cert_status" = "PROVISIONING" ] ); then
+            echo "deploy_runtime_reason_code=managed_certificate_pending"
+            echo "deploy_runtime_reason_code=tls_certificate_provisioning"
+            echo "deploy_runtime_reason_message=ManagedCertificate provisioning is still in progress for expected hostname."
+            exit 1
+          fi
+          if [ "$managed_certificate_metadata_available" = "true" ] && [ "$normalized_domain_status" != "ACTIVE" ]; then
+            echo "deploy_runtime_reason_code=managed_certificate_pending"
+            echo "deploy_runtime_reason_code=tls_certificate_provisioning"
+            echo "deploy_runtime_reason_message=ManagedCertificate domain status is not ACTIVE for expected hostname."
+            exit 1
+          fi
+          if [ "$managed_certificate_metadata_available" = "true" ] && [ -n "$normalized_cert_status" ] && [ "$normalized_cert_status" != "ACTIVE" ]; then
+            echo "deploy_runtime_reason_code=managed_certificate_pending"
+            echo "deploy_runtime_reason_code=tls_certificate_provisioning"
+            echo "deploy_runtime_reason_message=ManagedCertificate status is not ACTIVE yet."
+            exit 1
+          fi
+          static_ip_alignment_ready=false
+          if [ -n "$expected_static_ip_address" ]; then
+            if [ "$ingress_status_ip_matches_static_ip" = "true" ] || [ "$static_ip_bound_to_expected_forwarding_rule" = "true" ]; then
+              static_ip_alignment_ready=true
+            fi
+          else
+            static_ip_alignment_ready=true
+          fi
+          control_plane_ready=false
+          if [ "$dns_record_matches_ingress" = "true" ] \
+            && [ "$cert_identity_valid" = "true" ] \
+            && [ "$static_ip_alignment_ready" = "true" ] \
+            && [ "$normalized_domain_status" = "ACTIVE" ] \
+            && [ "$normalized_cert_status" = "ACTIVE" ]; then
+            control_plane_ready=true
+          fi
+          https_verify_output="$(mktemp)"
+          https_probe_attempted=true
+          if ! https_verify_code="$(curl --silent --show-error --connect-timeout 5 --max-time 10 --output /dev/null --write-out '%{http_code}' "https://$preview_host" 2>"$https_verify_output")"; then
+            https_verify_exit=$?
+            if [ "$https_verify_exit" -eq 60 ] || grep -qiE 'SSL certificate problem|SSL_ERROR_BAD_CERT_DOMAIN|certificate subject name|no alternative certificate subject name' "$https_verify_output"; then
+              set_https_probe_error_summary "reachable_but_tls_certificate_mismatch" "$https_verify_exit" "" "$https_verify_output"
+              if [ "$pre_shared_cert_controller_cross_site_evidence" = true ]; then
+                echo "deploy_runtime_reason_code=stale_pre_shared_cert_binding_detected"
+              fi
+              echo "deploy_runtime_reason_code=tls_certificate_bound_to_wrong_site"
+              echo "deploy_runtime_reason_code=reachable_but_tls_certificate_mismatch"
+            elif [ "$https_verify_exit" -eq 28 ]; then
+              set_https_probe_error_summary "https_probe_timeout" "$https_verify_exit" "" "$https_verify_output"
+              echo "deploy_runtime_reason_code=https_probe_timeout"
+              if [ "$control_plane_ready" = "true" ]; then
+                echo "deploy_runtime_reason_code=https_probe_failed_after_control_plane_ready"
+                echo "deploy_runtime_reason_message=DNS, IP, and certificate are ready, but HTTPS probe to preview host timed out."
+              fi
+            elif [ "$https_verify_exit" -eq 52 ]; then
+              set_https_probe_error_summary "https_probe_empty_reply" "$https_verify_exit" "" "$https_verify_output"
+              echo "deploy_runtime_reason_code=https_probe_empty_reply"
+              if [ "$control_plane_ready" = "true" ]; then
+                echo "deploy_runtime_reason_code=https_probe_failed_after_control_plane_ready"
+                echo "deploy_runtime_reason_message=DNS, IP, and certificate are ready, but HTTPS probe returned an empty reply."
+              fi
+            else
+              if [ -z "$ingress_status_ip" ] && [ -z "$expected_static_ip_address" ] && [ "$host_reachable" != "true" ]; then
+                set_https_probe_error_summary "ingress_address_pending" "$https_verify_exit" "" "$https_verify_output"
+                echo "deploy_runtime_reason_code=ingress_address_pending"
+              elif [ "$control_plane_ready" = "true" ]; then
+                set_https_probe_error_summary "https_probe_failed_after_control_plane_ready" "$https_verify_exit" "" "$https_verify_output"
+                echo "deploy_runtime_reason_code=https_probe_failed_after_control_plane_ready"
+                echo "deploy_runtime_reason_message=DNS, IP, and certificate are ready, but HTTPS probe to preview host is not yet successful. Check load balancer backend health, service endpoints, and app runtime readiness."
+              else
+                set_https_probe_error_summary "https_probe_failed" "$https_verify_exit" "" "$https_verify_output"
+                echo "deploy_runtime_reason_code=https_probe_failed"
+              fi
+            fi
+            cat "$https_verify_output"
+            rm -f "$https_verify_output"
+            exit 1
+          fi
+          rm -f "$https_verify_output"
+          preview_https_status="$https_verify_code"
+          if ! echo "$https_verify_code" | grep -Eq '^[1-5][0-9][0-9]$'; then
+            if [ "$control_plane_ready" = "true" ]; then
+              set_https_probe_error_summary "https_probe_failed_after_control_plane_ready" "" "$https_verify_code" ""
+              echo "deploy_runtime_reason_code=https_probe_failed_after_control_plane_ready"
+              echo "deploy_runtime_reason_message=DNS, IP, and certificate are ready, but HTTPS probe to the preview host is not yet successful. Check load balancer backend health, service endpoints, and app runtime readiness."
+            else
+              set_https_probe_error_summary "https_probe_failed" "" "$https_verify_code" ""
+              echo "deploy_runtime_reason_code=https_probe_failed"
+              echo "deploy_runtime_reason_message=HTTPS probe did not return a valid HTTP status code."
+            fi
+            exit 1
+          fi
+          if [ "$https_verify_code" = "502" ]; then
+            backend_502_detected=true
+            set_https_probe_error_summary "ingress_backend_502" "" "$https_verify_code" ""
+            echo "deploy_runtime_reason_code=ingress_backend_502"
+            collect_ingress_502_runtime_diagnostics
+            if [ "$gce_backend_health_status" = "HEALTHY" ] && [ "$service_probe_status" = "ok" ] && [ "$preview_https_status" = "502" ]; then
+              echo "deploy_runtime_reason_message=Preview hostname is reachable but returns HTTP 502 while GCE backend reports HEALTHY and in-cluster probes succeed. Likely ingress/LB edge convergence or stale backend path."
+            elif [ "$service_probe_status" = "http_502" ] || [ "$endpoint_probe_status" = "http_502" ]; then
+              echo "deploy_runtime_reason_message=Preview hostname is reachable but returns HTTP 502 and in-cluster service/endpoint probes also return 502. Likely app runtime response failure."
+            elif [ "$pod_restart_detected" = true ]; then
+              echo "deploy_runtime_reason_message=Preview hostname is reachable but returns HTTP 502 with pod restart/crash evidence. Likely pod runtime instability."
+            else
+              echo "deploy_runtime_reason_message=HTTPS probe reached ingress but backend returned 502. Review pod logs, in-cluster service probe status, endpoint probe status, and backend health evidence."
+            fi
+            exit 1
+          fi
+          if echo "$https_verify_code" | grep -Eq '^5[0-9][0-9]$'; then
+            if [ "$control_plane_ready" = "true" ]; then
+              set_https_probe_error_summary "https_probe_failed_after_control_plane_ready" "" "$https_verify_code" ""
+              echo "deploy_runtime_reason_code=https_probe_failed_after_control_plane_ready"
+              echo "deploy_runtime_reason_message=DNS, IP, and certificate are ready, but HTTPS probe to the preview host is not yet successful. Check load balancer backend health, service endpoints, and app runtime readiness."
+            else
+              set_https_probe_error_summary "https_probe_failed" "" "$https_verify_code" ""
+              echo "deploy_runtime_reason_code=https_probe_failed"
+              echo "deploy_runtime_reason_message=HTTPS probe returned 5xx before backend reached ready state."
+            fi
+            exit 1
+          fi
+          if echo "$https_verify_code" | grep -Eq '^4[0-9][0-9]$'; then
+            if [ "$control_plane_ready" = "true" ]; then
+              set_https_probe_error_summary "https_probe_failed_after_control_plane_ready" "" "$https_verify_code" ""
+              echo "deploy_runtime_reason_code=https_probe_failed_after_control_plane_ready"
+              echo "deploy_runtime_reason_message=DNS, IP, and certificate are ready, but HTTPS probe to the preview host is not yet successful. Check load balancer backend health, service endpoints, and app runtime readiness."
+            else
+              set_https_probe_error_summary "https_probe_failed" "" "$https_verify_code" ""
+              echo "deploy_runtime_reason_code=https_probe_failed"
+            fi
+            exit 1
+          fi
+          deploy_https_ready=true
+          live_url="https://$preview_host"
+          {
+            echo "live_url=$live_url"
+            echo "resolved_live_url=$live_url"
+            echo "deployed_url=$live_url"
+            echo "dns_record_matches_ingress=$dns_record_matches_ingress"
+            echo "dns_expected_ip=$dns_expected_ip"
+            echo "dns_observed_ip=$dns_observed_ip"
+            echo "expected_static_ip_address=$expected_static_ip_address"
+            echo "static_ip_status=$static_ip_status"
+            echo "static_ip_users=$static_ip_users"
+            echo "tls_certificate_status=$tls_certificate_status"
+            echo "tls_domain_status=$tls_domain_status"
+            echo "managed_certificate_resource_name=$MBSRN_PREVIEW_CERTIFICATE_NAME"
+            echo "observed_managed_certificate_domains=$observed_managed_certificate_domains"
+            echo "observed_managed_certificate_status=$observed_managed_certificate_status"
+            echo "observed_managed_certificate_domain_status=$observed_managed_certificate_domain_status"
+            echo "ingress_status_ip=$ingress_status_ip"
+            echo "ingress_status_ip_matches_static_ip=$ingress_status_ip_matches_static_ip"
+            echo "static_ip_bound_to_expected_forwarding_rule=$static_ip_bound_to_expected_forwarding_rule"
+            echo "ingress_ip=$ingress_ip"
+            echo "ingress_conflict_detected=$ingress_conflict_detected"
+            echo "cert_identity_valid=$cert_identity_valid"
+            echo "host_reachable=$host_reachable"
+            echo "host_reachability_scheme=$host_reachability_scheme"
+            echo "https_probe_error_summary=$https_probe_error_summary"
+            echo "deploy_https_ready=$deploy_https_ready"
+            echo "preview_https_status=$preview_https_status"
+            echo "preview_http_status=$preview_http_status"
+            echo "preview_probe_attempt=$preview_probe_attempt"
+            echo "preview_probe_elapsed_seconds=$preview_probe_elapsed_seconds"
+            echo "gce_backend_health_status=$gce_backend_health_status"
+            echo "k8s_endpoint_ready=$k8s_endpoint_ready"
+            echo "service_probe_status=$service_probe_status"
+            echo "in_cluster_service_status_code=$in_cluster_service_status_code"
+            echo "endpoint_probe_status=$endpoint_probe_status"
+            echo "endpoint_probe_status_code=$endpoint_probe_status_code"
+            echo "runtime_probe_status=$runtime_probe_status"
+            echo "pod_restart_detected=$pod_restart_detected"
+          } >> "$GITHUB_OUTPUT"
+      - name: Emit managed deployment metadata
+        run: |
+          echo "MBSRN managed deploy workflow: deploy-mbsrn-www-www-prod.yml"
+          echo "Repository: mhanson13/mbsrn-www"
+          echo "Branch: main"
+          echo "Kubernetes namespace: mbsrn-www"
+          echo "Namespace source: repo-name"
+          echo "Target environment key: gke-prod"
+          echo "Target environment source: admin_config"
+          echo "Site identity: df16ee39-faa4-4af4-ae16-36aeb5d1288b"
+          echo "Preview hostname: $MBSRN_PREVIEW_HOSTNAME"
+          echo "Preview certificate name: $MBSRN_PREVIEW_CERTIFICATE_NAME"
+          echo "FrontendConfig name: $MBSRN_FRONTEND_CONFIG_NAME"
+          echo "BackendConfig name: $MBSRN_BACKEND_CONFIG_NAME"
+          echo "Site runtime image: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_image_reference }}"
+          echo "Site runtime image selection mode: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_image_selection_mode }}"
+          echo "Site runtime image repository: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_image_repository }}"
+          echo "Site runtime image tag: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_image_tag }}"
+          echo "Site runtime source commit: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_source_commit }}"
+          echo "Site runtime content source: ${{ steps.resolve_site_runtime_image.outputs.site_runtime_content_source }}"
