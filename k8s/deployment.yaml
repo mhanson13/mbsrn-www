@@ -1,0 +1,52 @@
+# mbsrn-managed-manifest:site_repo_template_v1
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: site-web
+  namespace: mbsrn-www
+  labels:
+    app.kubernetes.io/managed-by: mbsrn
+    app.kubernetes.io/name: site-web
+    mbsrn.io/repo: mbsrn-www
+    mbsrn.io/environment-key: gke-prod
+    mbsrn.io/environment-source: admin-config
+    mbsrn.io/site-id: df16ee39-faa4-4af4-ae16-36aeb5d1288b
+    mbsrn.io/namespace-source: repo-name
+    mbsrn.io/preview-hostname: mbsrn-www.site.mbsrn.com
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: site-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: site-web
+        app.kubernetes.io/managed-by: mbsrn
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: site-web
+          image: ghcr.io/mhanson13/mbsrn-www-site-web:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8080"
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
