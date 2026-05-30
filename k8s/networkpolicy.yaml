@@ -1,0 +1,56 @@
+# mbsrn-managed-manifest:site_repo_template_v1
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: site-default-deny-ingress
+  namespace: mbsrn-www
+  labels:
+    app.kubernetes.io/managed-by: mbsrn
+    app.kubernetes.io/name: site-web
+    mbsrn.io/repo: mbsrn-www
+    mbsrn.io/environment-key: gke-prod
+    mbsrn.io/environment-source: admin-config
+    mbsrn.io/site-id: df16ee39-faa4-4af4-ae16-36aeb5d1288b
+    mbsrn.io/namespace-source: repo-name
+    mbsrn.io/preview-hostname: mbsrn-www.site.mbsrn.com
+    mbsrn.io/network-policy-mode: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: site-web-allow-managed-ingress
+  namespace: mbsrn-www
+  labels:
+    app.kubernetes.io/managed-by: mbsrn
+    app.kubernetes.io/name: site-web
+    mbsrn.io/repo: mbsrn-www
+    mbsrn.io/environment-key: gke-prod
+    mbsrn.io/environment-source: admin-config
+    mbsrn.io/site-id: df16ee39-faa4-4af4-ae16-36aeb5d1288b
+    mbsrn.io/namespace-source: repo-name
+    mbsrn.io/preview-hostname: mbsrn-www.site.mbsrn.com
+    mbsrn.io/network-policy-mode: default-deny-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: site-web
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+    - from:
+        - ipBlock:
+            cidr: 35.191.0.0/16
+        - ipBlock:
+            cidr: 130.211.0.0/22
+      ports:
+        - protocol: TCP
+          port: 8080
