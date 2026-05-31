@@ -1,96 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>How MBSRN Works – Audits, Evidence & Safe SEO Workflows</title>
+  <!-- DRAFT ONLY: This is a non-production static mockup generated for operator review. -->
+  <meta charset="UTF-8" />
+  <title>How MBSRN Works | Operator-First SEO Operations Workflow</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="See how MBSRN connects SEO audits, recommendations, competitor context, and website migration into operator-first, reviewable workflows for small businesses." />
-  <meta name="robots" content="noindex, nofollow" />
-  <!-- DRAFT-ONLY: Migration preview, not a production deployment. -->
-  <style>
-    :root {
-      --bg: #020617;
-      --accent: #4ade80;
-      --muted: #9ca3af;
-      --border-subtle: #111827;
-      --card: #020617;
-      --radius: 14px;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top left, #1f2937 0, #020617 55%);
-      color: #e5e7eb;
-    }
-    a { color: inherit; text-decoration: none; }
-    .page { min-height: 100vh; display: flex; flex-direction: column; }
-    header {
-      border-bottom: 1px solid rgba(31,41,55,0.9);
-      background: rgba(15,23,42,0.98);
-      backdrop-filter: blur(14px);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-    .nav {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 0.75rem 1.25rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .logo { display: flex; align-items: center; gap: 0.6rem; font-weight: 650; letter-spacing: 0.03em; }
-    .logo-mark { width: 28px; height: 28px; border-radius: 9px; background: conic-gradient(from 210deg, #4ade80,#22d3ee,#a855f7,#4ade80); padding: 2px; box-shadow: 0 0 0 1px rgba(15,23,42,0.9); }
-    .logo-inner { width: 100%; height: 100%; border-radius: 7px; background: #020617; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
-    .logo-sub { font-size: 0.7rem; color: var(--muted); margin-top: -0.15rem; }
-    .nav-links { display: flex; gap: 1.2rem; font-size: 0.86rem; }
-    .nav-links a { color: #e5e7eb; opacity: 0.85; }
-    .nav-links a:hover { opacity: 1; }
-    .nav-cta {
-      padding: 0.4rem 1rem;
-      border-radius: 999px;
-      border: 1px solid rgba(74,222,128,0.6);
-      background: linear-gradient(135deg, rgba(22,163,74,0.5), rgba(5,46,22,0.95));
-      font-size: 0.8rem;
-    }
-    main { flex: 1; }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 1.8rem 1.25rem 2.5rem; }
-    h1 { font-size: clamp(1.8rem, 2.6vw, 2.1rem); margin: 0 0 0.4rem; letter-spacing: -0.04em; }
-    .kicker { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.4rem; }
-    .lead { font-size: 0.94rem; color: var(--muted); max-width: 42rem; }
-    .pill-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.9rem 0 1.3rem; }
-    .pill { border-radius: 999px; border: 1px solid rgba(148,163,184,0.6); padding: 0.22rem 0.65rem; font-size: 0.73rem; color: var(--muted); }
-    .layout { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,0.9fr); gap: 1.8rem; margin-top: 1.4rem; align-items: flex-start; }
-    .card { border-radius: var(--radius); border: 1px solid var(--border-subtle); background: radial-gradient(circle at top left,#020617,#020617 65%,#020617 100%); padding: 0.9rem 1rem; font-size: 0.85rem; }
-    .card h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
-    .card h3 { font-size: 0.9rem; margin: 0.7rem 0 0.25rem; }
-    .badge { font-size: 0.7rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid rgba(74,222,128,0.6); padding: 0.14rem 0.6rem; margin-bottom: 0.35rem; }
-    .badge-dot { width: 7px; height: 7px; border-radius: 999px; background: #22c55e; }
-    .list { list-style: none; padding: 0; margin: 0.3rem 0 0; }
-    .list li { margin-bottom: 0.35rem; display: flex; gap: 0.4rem; }
-    .list span.icon { font-size: 0.75rem; opacity: 0.7; margin-top: 0.15rem; }
-    .muted { color: var(--muted); }
-    .grid-2 { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0.8rem; margin-top: 0.8rem; }
-    .step-label { font-size: 0.7rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.2rem; }
-    .tag { font-size: 0.68rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.7); padding: 0.12rem 0.5rem; color: var(--muted); display: inline-block; margin-top: 0.2rem; }
-    .timeline { margin-top: 1.9rem; display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: 1.5rem; align-items: flex-start; }
-    .timeline-item { border-left: 2px solid rgba(55,65,81,0.9); padding-left: 0.8rem; margin-bottom: 0.9rem; }
-    .timeline-dot { width: 10px; height: 10px; border-radius: 999px; background: #22c55e; border: 2px solid #020617; margin-left: -1.14rem; margin-bottom: 0.2rem; }
-    .badge-soft { border-radius: 999px; border: 1px solid rgba(74,222,128,0.4); background: rgba(22,163,74,0.16); color: #bbf7d0; padding: 0.18rem 0.6rem; font-size: 0.72rem; }
-    .cta-row { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.1rem; }
-    .btn-primary { padding: 0.65rem 1.3rem; border-radius: 999px; border: 1px solid rgba(74,222,128,0.7); background: linear-gradient(135deg,#22c55e,#16a34a); color: #052e16; font-size: 0.86rem; font-weight: 600; }
-    .btn-secondary { padding: 0.6rem 1.2rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.7); background: #020617; font-size: 0.82rem; }
-    footer { border-top: 1px solid rgba(31,41,55,0.95); background: #020617; padding: 1rem 1.25rem 1.6rem; font-size: 0.78rem; color: var(--muted); }
-    .footer-inner { max-width: 1080px; margin: 0 auto; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: center; }
-    .footer-links { display: flex; flex-wrap: wrap; gap: 1rem; }
-    @media (max-width: 880px) {
-      .nav-links { display: none; }
-      .layout, .timeline { grid-template-columns: minmax(0,1fr); }
-      .grid-2 { grid-template-columns: minmax(0,1fr); }
-    }
-  </style>
+  <meta name="description" content="See how MBSRN turns SEO audits, competitor insights, and AI-assisted drafts into reviewable recommendations and safe website migration workflows for small businesses." />
+  <link rel="icon" type="image/png" href="assets/images/mbsrn-fav-ico.png" />
+  <link rel="stylesheet" href="styles.css" />
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-TW1JKRGXTP"></script>
 <script>
@@ -101,198 +18,245 @@
 </script>
 </head>
 <body>
-<div class="page">
-  <header>
-    <div class="nav">
-      <a class="logo" href="index.html">
-        <span class="logo-mark"><span class="logo-inner">MB</span></span>
-        <span>
-          <span>My Business Sucks Right Now</span><br />
-          <span class="logo-sub">SEO operations platform</span>
-        </span>
-      </a>
-      <nav class="nav-links" aria-label="Primary">
-        <a href="index.html">Home</a>
-        <a href="#seo-audit">SEO Audit</a>
-        <a href="recommendations-competitors.html">Recommendations</a>
-        <a href="migration-contact.html">Website Migration</a>
-        <a href="migration-contact.html#contact">Contact</a>
-        <a class="nav-cta" href="migration-contact.html#contact">Request a Review</a>
-      </nav>
-    </div>
-  </header>
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo-link">
+      <img src="assets/images/mbsrn-logo.png" alt="MBSRN logo" class="logo-main" />
+      <span class="logo-text">My Business Sucks Right Now</span>
+    </a>
+    <nav class="main-nav" aria-label="Main navigation">
+      <a href="how-it-works.html" aria-current="page">How It Works</a>
+      <a href="website-migration.html">Website Migration</a>
+      <a href="contact.html">Contact</a>
+      <a href="contact.html" class="btn btn-primary btn-small">Start an SEO Audit</a>
+    </nav>
+  </div>
+</header>
 
-  <main>
-    <div class="wrap">
-      <p class="kicker">Operator‑first, evidence‑backed SEO workflows</p>
-      <h1>How MBSRN works from audit to safe website improvements.</h1>
-      <p class="lead">
-        MBSRN is not a magic button. It’s a <strong>system</strong> for turning
-        <strong>SEO audits, competitor context, and your requirements</strong> into
-        draft‑ready site improvements with clear review gates and safe publishing.
+<main>
+  <section class="page-hero">
+    <div class="container">
+      <p class="eyebrow">Workflow overview · Draft content</p>
+      <h1>How MBSRN turns a weak website into a practical SEO plan.</h1>
+      <p class="hero-subtitle">
+        From audit to migration, MBSRN is designed to keep operators in control.
+        AI assists with drafts. Humans review, approve, and decide when to publish.
       </p>
-      <div class="pill-row">
-        <span class="pill">Draft content – for operator review only</span>
-        <span class="pill">No live changes without explicit approval</span>
-        <span class="pill">Supports Admin, Operator, and User roles</span>
+      <div class="hero-actions">
+        <a href="contact.html" class="btn btn-primary">Request a Website Review</a>
+        <a href="website-migration.html" class="btn btn-secondary">Explore Website Migration</a>
       </div>
+    </div>
+  </section>
 
-      <div class="layout">
-        <section class="card" id="seo-audit" aria-labelledby="audit-heading">
-          <div class="badge"><span class="badge-dot"></span>Step 1 – SEO Audit</div>
-          <h2 id="audit-heading">Start with an audit you can actually use.</h2>
-          <p class="muted">
-            Many small business audits stop at “you have 47 errors.” MBSRN goes further by
-            <strong>connecting each issue to impact, evidence, and next actions.</strong>
+  <!-- STEP OVERVIEW -->
+  <section class="section-light">
+    <div class="container">
+      <h2>The MBSRN workflow at a glance</h2>
+      <div class="timeline">
+        <article class="timeline-step">
+          <h3>1. Intake & goals</h3>
+          <p>
+            Capture your current website URL, service area, and business goals.
+            Operators and owners define what "better" looks like: more calls, clearer services, improved local visibility, or a full migration.
           </p>
-          <h3>What the MBSRN audit looks at</h3>
-          <ul class="list">
-            <li><span class="icon">•</span><span><strong>Technical basics</strong> – crawlability, index signals, page structure, internal links.</span></li>
-            <li><span class="icon">•</span><span><strong>Content clarity</strong> – service pages, local signals, headings, and calls‑to‑action.</span></li>
-            <li><span class="icon">•</span><span><strong>Local search readiness</strong> – alignment with your <strong>Google Business Profile</strong> and service areas (for example around ZIP code 80542).</span></li>
-            <li><span class="icon">•</span><span><strong>Data signals</strong> – context from <strong>Google Search Console and GA4</strong> to see what’s actually being found (or ignored).</span></li>
+        </article>
+        <article class="timeline-step">
+          <h3>2. SEO audit</h3>
+          <p>
+            MBSRN ingests your existing site and analyzes key signals:
+          </p>
+          <ul class="dash-list">
+            <li>Site structure, internal links, and on-page content</li>
+            <li>Technical issues that can block or confuse search engines</li>
+            <li>Connections to Google Search Console, GA4, and Google Business Profile (when available)</li>
           </ul>
-          <h3>How it feels for different roles</h3>
-          <div class="grid-2">
-            <div>
-              <p class="step-label">For business owners</p>
-              <p class="muted">
-                You see a <strong>plain‑language summary</strong> of what’s blocking visibility and usability,
-                along with a short list of <strong>high‑impact fixes</strong> to prioritize.
-              </p>
-            </div>
-            <div>
-              <p class="step-label">For operators & admins</p>
-              <p class="muted">
-                You get structured findings that can be <strong>triaged, assigned, and linked</strong>
-                to recommendations, migrations, and publishing targets.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <aside class="card" aria-label="Roles and control">
-          <h2>Admin, Operator, and User roles – without extra complexity.</h2>
-          <p class="muted">
-            MBSRN is designed for <strong>small businesses</strong>, not big‑company org charts.
-            But separating roles still matters for safety and clarity.
+        </article>
+        <article class="timeline-step">
+          <h3>3. Competitor insights</h3>
+          <p>
+            We surface local competitors so you can see how your website compares:
           </p>
+          <ul class="dash-list">
+            <li>Content gaps: pages or topics competitors cover that you do not</li>
+            <li>Local SEO signals: how they present services, locations, and reviews</li>
+            <li>Structure ideas: how they organize service pages, FAQs, and CTAs</li>
+          </ul>
+        </article>
+        <article class="timeline-step">
+          <h3>4. Recommendations</h3>
+          <p>
+            Based on the audit and competitor context, MBSRN creates actionable recommendations that explain:</p>
+          <ul class="dash-list">
+            <li><strong>What to adjust:</strong> specific pages, sections, or technical items</li>
+            <li><strong>Why it matters:</strong> how it supports visibility, clarity, or conversions</li>
+            <li><strong>Evidence:</strong> references to audit findings or competitor examples</li>
+            <li><strong>Expected outcome:</strong> what you should see if implemented well</li>
+          </ul>
+        </article>
+        <article class="timeline-step">
+          <h3>5. Draft content & migration artifacts</h3>
+          <p>
+            AI helps generate draft page copy, layouts, and static-site artifacts based on your requirements. Examples include:</p>
+          <ul class="dash-list">
+            <li>Rewritten service pages and clearer navigation</li>
+            <li>New local landing pages for high-value search terms</li>
+            <li>Draft static HTML and CSS ready for your preferred hosting</li>
+          </ul>
+          <p>
+            These are drafts only—operators and owners retain full control over what is edited, accepted, or discarded.
+          </p>
+        </article>
+        <article class="timeline-step">
+          <h3>6. Review gates & approvals</h3>
+          <p>
+            Before anything is moved toward production:</p>
+          <ul class="dash-list">
+            <li>Operators review each recommendation and draft artifact</li>
+            <li>Changes can be updated, combined, or paused</li>
+            <li>Business owners can review in plain language before signing off</li>
+          </ul>
+        </article>
+        <article class="timeline-step">
+          <h3>7. Safe publishing workflow</h3>
+          <p>
+            Once approved, changes can move to staging or live environments based on admin-configured publishing targets.</p>
+          <p class="small">
+            MBSRN is designed to support controlled publishing. It does not push automatic production changes without explicit operator or admin approval.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROLE DETAIL -->
+  <section class="section-muted">
+    <div class="container">
+      <h2>Who does what: Admins, Operators, and Users.</h2>
+      <div class="card-grid three-up">
+        <article class="card">
           <h3>Admins</h3>
-          <p class="muted">
-            Configure <strong>data connections</strong> (like GSC, GA4), define
-            <strong>publishing targets</strong>, and control who can approve what.
-          </p>
-          <span class="tag">Example: only Admins confirm production domains.</span>
+          <ul class="dash-list">
+            <li>Set up accounts and permissions</li>
+            <li>Connect Google Search Console, GA4, and other data sources</li>
+            <li>Configure where drafts can be published or exported</li>
+            <li>Define review rules and approval policies</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>Operators</h3>
-          <p class="muted">
-            Run audits, review competitor context, generate migration drafts, and
-            <strong>prepare changes for approval</strong> without touching live infrastructure.
-          </p>
-          <span class="tag">Example: Operators can stage content but not publish to production.</span>
-          <h3>Users / Stakeholders</h3>
-          <p class="muted">
-            Business owners or managers who <strong>review results, comment on drafts,</strong>
-            and choose which improvements to prioritize.
-          </p>
-          <span class="tag">Example: owner signs off on new service page wording.</span>
-        </aside>
-      </div>
-
-      <section class="timeline" aria-labelledby="flow-heading">
-        <div>
-          <p class="badge-soft">End‑to‑end workflow</p>
-          <h2 id="flow-heading">From weak site to reviewed migration draft.</h2>
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <p class="step-label">1. Ingest & baseline</p>
-            <p class="muted">
-              MBSRN ingests your existing site and key signals. We treat this as
-              <strong>baseline evidence</strong>, not something to blindly copy.
-            </p>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <p class="step-label">2. Audit & classify issues</p>
-            <p class="muted">
-              Technical and content issues are <strong>grouped and scored</strong>
-              so operators can quickly see what’s hurting visibility, clarity, and conversions.
-            </p>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <p class="step-label">3. Generate recommendations</p>
-            <p class="muted">
-              Each recommendation clearly states <strong>what to change, why it matters, evidence sources,</strong>
-              and <strong>expected outcome</strong>. This feeds the migration and content drafts.
-            </p>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <p class="step-label">4. Pull in competitor context</p>
-            <p class="muted">
-              MBSRN reviews <strong>competitors and local peers</strong> to highlight
-              content gaps, service‑page opportunities, and positioning ideas.
-            </p>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <p class="step-label">5. Draft migration artifacts</p>
-            <p class="muted">
-              Using the audit, recommendations, and your requirements, MBSRN generates
-              <strong>draft static site artifacts</strong> (like the pages you’re reading now)
-              for operator and stakeholder review.
-            </p>
-          </div>
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <p class="step-label">6. Review gates & publishing</p>
-            <p class="muted">
-              Admins and Operators <strong>review, edit, and approve</strong> drafts before anything
-              is published to a configured target. <strong>No automatic production changes</strong>
-              happen without explicit approval.
-            </p>
-          </div>
-        </div>
-        <aside class="card">
-          <h2>Safe by design, not by accident.</h2>
-          <p class="muted">
-            MBSRN uses AI to assist with <strong>drafts and suggestions</strong>, but
-            <strong>humans remain in control</strong> of every important decision.
-          </p>
-          <h3>What MBSRN does</h3>
-          <ul class="list">
-            <li><span class="icon">✓</span><span>Surfaces issues with clear, evidence‑backed explanations.</span></li>
-            <li><span class="icon">✓</span><span>Generates migration drafts you can inspect before publishing.</span></li>
-            <li><span class="icon">✓</span><span>Respects role boundaries between Admins, Operators, and Users.</span></li>
+          <ul class="dash-list">
+            <li>Run audits and competitor reviews</li>
+            <li>Interpret recommendations and adjust language for the business</li>
+            <li>Coordinate with owners on priorities and timing</li>
+            <li>Approve which drafts move forward to staging or production</li>
           </ul>
-          <h3>What MBSRN does not do</h3>
-          <ul class="list">
-            <li><span class="icon">✕</span><span>Does not claim or guarantee specific search rankings or traffic.</span></li>
-            <li><span class="icon">✕</span><span>Does not push automatic changes to production without approval.</span></li>
-            <li><span class="icon">✕</span><span>Does not replace human operators, editors, or legal review.</span></li>
+        </article>
+        <article class="card">
+          <h3>Users & owners</h3>
+          <ul class="dash-list">
+            <li>Review findings in clear, non-technical language</li>
+            <li>Provide context about services, pricing, and target customers</li>
+            <li>Approve the final content and migration plan</li>
+            <li>Track which actions have been completed</li>
           </ul>
-          <div class="cta-row">
-            <a class="btn-primary" href="migration-contact.html#contact">Start an SEO Audit</a>
-            <a class="btn-secondary" href="recommendations-competitors.html">See recommendations format</a>
-          </div>
-        </aside>
-      </section>
-    </div>
-  </main>
-
-  <footer>
-    <div class="footer-inner">
-      <div>© <span id="year">2026</span> My Business Sucks Right Now · Draft migration view</div>
-      <div class="footer-links">
-        <a href="index.html">Home</a>
-        <a href="recommendations-competitors.html">Recommendations</a>
-        <a href="migration-contact.html">Website Migration</a>
+        </article>
       </div>
     </div>
-  </footer>
-</div>
-<script>
-  document.getElementById('year').textContent = new Date().getFullYear();
-</script>
+  </section>
+
+  <!-- AUDIT, RECOMMENDATIONS, COMPETITORS, MIGRATION QUICK LINKS -->
+  <section class="section-light">
+    <div class="container">
+      <h2>From audit to migration: four connected views.</h2>
+      <div class="card-grid four-up stack-mobile">
+        <article class="card card-outline">
+          <h3>SEO Audit</h3>
+          <p>
+            See what is broken or missing on your current site. Understand how search engines and customers experience your content.
+          </p>
+          <p class="small"><a href="contact.html">Ask for an audit and walkthrough</a></p>
+        </article>
+        <article class="card card-outline">
+          <h3>Recommendations</h3>
+          <p>
+            A prioritized list of changes written in plain English with evidence, expected impact, and suggested next steps.
+          </p>
+          <p class="small"><a href="contact.html">Review sample recommendations</a></p>
+        </article>
+        <article class="card card-outline">
+          <h3>Competitor Insights</h3>
+          <p>
+            See how competitors present services, use local keywords, and structure their sites—without copying blindly.
+          </p>
+          <p class="small"><a href="contact.html">Discuss competitor findings</a></p>
+        </article>
+        <article class="card card-outline">
+          <h3>Website Migration</h3>
+          <p>
+            When you are ready, turn recommendations and drafts into a cleaner site and hosting setup, with clear redirects and content mapping.
+          </p>
+          <p class="small"><a href="website-migration.html">Explore migration support</a></p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- SAFETY AND LIMITATIONS -->
+  <section class="section-dark">
+    <div class="container two-col">
+      <div>
+        <h2>What MBSRN does—and what it intentionally avoids.</h2>
+        <p>
+          We focus on practical SEO operations and safer website changes. That means being clear about limitations.
+        </p>
+      </div>
+      <div>
+        <ul class="dash-list">
+          <li>MBSRN does not guarantee specific search rankings or business outcomes.</li>
+          <li>MBSRN does not replace the need for human review and decision-making.</li>
+          <li>MBSRN avoids automatic production changes without explicit approval.</li>
+          <li>MBSRN avoids exposing internal infrastructure, secrets, or deployment internals in this workflow.</li>
+        </ul>
+        <p class="small">
+          This page describes a draft workflow model. Final implementation details, integrations, and policies should be confirmed and documented by your team before use.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-cta">
+    <div class="container cta-inner">
+      <div>
+        <h2>Walk through the workflow on your own site.</h2>
+        <p>
+          Share your current website and goals. We will review, run an initial audit, and outline a practical path forward.
+        </p>
+      </div>
+      <div class="cta-actions">
+        <a href="contact.html" class="btn btn-primary">Request a Website Review</a>
+        <a href="website-migration.html" class="btn btn-outline">Plan a Website Migration</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-left">
+      <img src="assets/images/mbsrn-logo.png" alt="MBSRN small logo" class="logo-small" />
+      <span>My Business Sucks Right Now</span>
+      <p class="footer-note">Draft-static site content for review. Not connected to live publishing.</p>
+    </div>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html">How It Works</a>
+      <a href="website-migration.html">Website Migration</a>
+      <a href="contact.html">Contact</a>
+      <a href="#" aria-disabled="true">Privacy Policy (placeholder)</a>
+      <a href="#" aria-disabled="true">Terms of Service (placeholder)</a>
+    </div>
+  </div>
+</footer>
 </body>
 </html>
