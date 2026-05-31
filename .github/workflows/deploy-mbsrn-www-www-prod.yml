@@ -1,5 +1,5 @@
 # mbsrn-managed-template:site_repo_template_v1
-# mbsrn-workflow-signature: db495f568a6dd1dd2f1ca42bb2acede9d178509749cc75268a34203cb2d7af75
+# mbsrn-workflow-signature: 78dc139be598bc03a57f47e2ca51c156be04138aff6053101358c211240e24fe
 name: MBSRN Deploy mbsrn-www
 
 on:
@@ -550,7 +550,10 @@ jobs:
             fallback_detail=""
             normalized_cert_status_local="$(echo "${tls_certificate_status:-}" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
             normalized_domain_status_local="$(echo "${tls_domain_status:-}" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')"
-            if [ "${https_probe_attempted:-false}" = "true" ]; then
+            if [ "$normalized_domain_status_local" = "PROVISIONING" ] || [ "$normalized_cert_status_local" = "PROVISIONING" ]; then
+              fallback_reason="managed_certificate_provisioning"
+              fallback_detail="managed certificate/domain status still PROVISIONING"
+            elif [ "${https_probe_attempted:-false}" = "true" ]; then
               if [ "${control_plane_ready:-false}" = "true" ]; then
                 fallback_reason="https_probe_failed_after_control_plane_ready"
                 fallback_detail="probe_attempted_without_error_summary"
@@ -1468,18 +1471,24 @@ jobs:
             exit 1
           fi
           if [ "$managed_certificate_metadata_available" = "true" ] && ( [ "$normalized_domain_status" = "PROVISIONING" ] || [ "$normalized_cert_status" = "PROVISIONING" ] ); then
+            set_https_probe_error_summary "managed_certificate_provisioning" "" "" ""
+            echo "deploy_runtime_reason_code=managed_certificate_provisioning"
             echo "deploy_runtime_reason_code=managed_certificate_pending"
             echo "deploy_runtime_reason_code=tls_certificate_provisioning"
-            echo "deploy_runtime_reason_message=ManagedCertificate provisioning is still in progress for expected hostname."
+            echo "deploy_runtime_reason_message=Deploy reached the load balancer, but ManagedCertificate/TLS is still provisioning for expected hostname. Wait for ACTIVE status, then refresh or rerun deploy."
             exit 1
           fi
           if [ "$managed_certificate_metadata_available" = "true" ] && [ "$normalized_domain_status" != "ACTIVE" ]; then
+            set_https_probe_error_summary "managed_certificate_provisioning" "" "" ""
+            echo "deploy_runtime_reason_code=managed_certificate_provisioning"
             echo "deploy_runtime_reason_code=managed_certificate_pending"
             echo "deploy_runtime_reason_code=tls_certificate_provisioning"
             echo "deploy_runtime_reason_message=ManagedCertificate domain status is not ACTIVE for expected hostname."
             exit 1
           fi
           if [ "$managed_certificate_metadata_available" = "true" ] && [ -n "$normalized_cert_status" ] && [ "$normalized_cert_status" != "ACTIVE" ]; then
+            set_https_probe_error_summary "managed_certificate_provisioning" "" "" ""
+            echo "deploy_runtime_reason_code=managed_certificate_provisioning"
             echo "deploy_runtime_reason_code=managed_certificate_pending"
             echo "deploy_runtime_reason_code=tls_certificate_provisioning"
             echo "deploy_runtime_reason_message=ManagedCertificate status is not ACTIVE yet."
@@ -1530,6 +1539,11 @@ jobs:
               if [ -z "$ingress_status_ip" ] && [ -z "$expected_static_ip_address" ] && [ "$host_reachable" != "true" ]; then
                 set_https_probe_error_summary "ingress_address_pending" "$https_verify_exit" "" "$https_verify_output"
                 echo "deploy_runtime_reason_code=ingress_address_pending"
+              elif [ "$normalized_domain_status" = "PROVISIONING" ] || [ "$normalized_cert_status" = "PROVISIONING" ]; then
+                set_https_probe_error_summary "managed_certificate_provisioning" "$https_verify_exit" "" "$https_verify_output"
+                echo "deploy_runtime_reason_code=managed_certificate_provisioning"
+                echo "deploy_runtime_reason_code=tls_certificate_provisioning"
+                echo "deploy_runtime_reason_message=Deploy reached the load balancer, but ManagedCertificate/TLS is still provisioning for expected hostname. Wait for ACTIVE status, then refresh or rerun deploy."
               elif [ "$control_plane_ready" = "true" ]; then
                 set_https_probe_error_summary "https_probe_failed_after_control_plane_ready" "$https_verify_exit" "" "$https_verify_output"
                 echo "deploy_runtime_reason_code=https_probe_failed_after_control_plane_ready"
