@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-  <!-- DRAFT ONLY: This is a non-production static mockup generated for operator review. -->
   <meta charset="UTF-8" />
-  <title>Website Migration | Move From Weak Hosting to a Better Site With MBSRN</title>
+  <title>Website Migration | Safe Website Drafts Before You Publish</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="See how MBSRN ingests your existing site, uses audits and competitor context, and generates reviewable draft content and migration plans—before any changes go live." />
+  <meta name="description" content="See how MBSRN helps small businesses move off weak or legacy hosts like GoDaddy into reviewable static-site drafts, with operator control and no automatic production changes." />
   <link rel="icon" type="image/png" href="assets/images/mbsrn-fav-ico.png" />
+  <!-- DRAFT ONLY: Website migration page mockup for operator review. -->
   <link rel="stylesheet" href="styles.css" />
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-TW1JKRGXTP"></script>
@@ -20,168 +20,117 @@
 <body>
 <header class="site-header">
   <div class="container header-inner">
-    <a href="index.html" class="logo-link">
-      <img src="assets/images/mbsrn-logo.png" alt="MBSRN logo" class="logo-main" />
-      <span class="logo-text">My Business Sucks Right Now</span>
+    <a href="index.html" class="logo-link" aria-label="My Business Sucks Right Now home">
+      <img src="assets/images/mbsrn-logo.png" alt="My Business Sucks Right Now logo" class="logo-main" />
     </a>
-    <nav class="main-nav" aria-label="Main navigation">
+    <nav class="main-nav" aria-label="Main">
       <a href="how-it-works.html">How It Works</a>
+      <a href="seo-audit-recommendations.html">SEO Audit & Recommendations</a>
       <a href="website-migration.html" aria-current="page">Website Migration</a>
-      <a href="contact.html">Contact</a>
-      <a href="contact.html" class="btn btn-primary btn-small">Explore Website Migration</a>
+      <a href="index.html#for-operators">For Operators</a>
     </nav>
+    <div class="header-cta-group">
+      <button class="theme-toggle" type="button" aria-label="Toggle light or dark theme">☾</button>
+      <a href="#explore-migration" class="btn btn-primary">Explore Website Migration</a>
+    </div>
   </div>
 </header>
 
 <main>
-  <section class="page-hero hero-split">
-    <div class="container hero-grid">
-      <div class="hero-copy">
-        <p class="eyebrow">Migration support · Draft content</p>
-        <h1>Move from a weak website to a clearer, more findable site—safely.</h1>
-        <p class="hero-subtitle">
-          MBSRN helps you migrate away from overloaded platforms like GoDaddy or similar hosts by generating reviewable draft sites and redirect plans.
-          Every step is checked by humans before going live.
-        </p>
-        <div class="hero-actions">
-          <a href="contact.html" class="btn btn-primary">Explore Website Migration</a>
-          <a href="how-it-works.html" class="btn btn-secondary">See the full workflow</a>
-        </div>
-      </div>
-      <div class="hero-media">
-        <figure class="hero-image-card">
-          <img src="assets/images/frust-cleaning-person-www.png" alt="Stressed cleaner on phone receiving multiple last-minute schedule change messages" />
-          <figcaption>Your hosting platform should not decide how good your website is. Migration lets you separate content from the old tool.</figcaption>
-        </figure>
-      </div>
+  <section class="page-hero">
+    <div class="container narrow">
+      <p class="eyebrow">Migration without surprises</p>
+      <h1>Move off a weak website platform with reviewable drafts</h1>
+      <p class="lead">Whether you&apos;re stuck on GoDaddy or another legacy host, MBSRN helps you migrate using static-site drafts that operators can inspect, edit, and approve before anything goes live.</p>
     </div>
   </section>
 
-  <!-- WHY MIGRATE -->
-  <section class="section-light">
+  <!-- WHY MIGRATION -->
+  <section class="section" aria-labelledby="why-migrate-heading" id="explore-migration">
     <div class="container two-col">
       <div>
-        <h2>Why consider a migration?</h2>
-        <p>
-          Many small business sites start on all-in-one builders. They are easy at first, but over time you may feel stuck:
-        </p>
-        <ul class="check-list">
-          <li>Templates that no longer fit the business you actually run</li>
-          <li>Slow or cluttered pages that confuse customers</li>
-          <li>Limited control over SEO structure and technical settings</li>
-          <li>Difficulty tracking results in Google Search Console or GA4</li>
+        <h2 id="why-migrate-heading">Why migration matters for SEO and operations</h2>
+        <p>Old themes, random plugins, and half-finished pages make it hard to improve SEO. Migration gives you a cleaner, more predictable foundation.</p>
+        <ul class="checklist">
+          <li>Remove legacy clutter that slows down every change.</li>
+          <li>Organize content so service pages, locations, and FAQs are easy to find.</li>
+          <li>Create room for better internal links and clearer calls-to-action.</li>
+          <li>Document your new structure so future updates stay organized.</li>
         </ul>
-        <p>
-          Migration does not have to mean starting from scratch. MBSRN uses your existing site as a starting point, then adds structure, clarity, and measurement.
-        </p>
       </div>
-      <div>
-        <article class="mini-card">
-          <h3>From "sucks right now" to a cleaner foundation</h3>
-          <p>
-            We preserve what works, drop what does not, and add what is missing—especially clear service pages and local SEO signals.
-          </p>
-        </article>
-        <article class="mini-card">
-          <h3>Operator-first, not platform-first</h3>
-          <p>
-            The focus is on your content, customers, and operations. Hosting can be swapped or improved once the structure is right.
-          </p>
-        </article>
+      <div class="card">
+        <h3>Static-site drafts, not auto-published websites</h3>
+        <p>MBSRN generates draft content and structure in static HTML and CSS—like the page you&apos;re reading now. These drafts are meant for review, not automatic deployment.</p>
+        <p class="small">This very page is an example of a migration artifact: a safe, standalone file that can be inspected, edited, and approved before any admin connects it to a live environment.</p>
       </div>
     </div>
   </section>
 
   <!-- MIGRATION STEPS -->
-  <section class="section-muted">
+  <section class="section section-alt" aria-labelledby="migration-steps-heading">
     <div class="container">
-      <h2>How MBSRN migration works.</h2>
-      <div class="timeline">
-        <article class="timeline-step">
-          <h3>1. Capture your current site</h3>
-          <p>
-            MBSRN ingests your existing website content and structure. This includes key pages, headings, internal links, and any available metadata.
-          </p>
-        </article>
-        <article class="timeline-step">
-          <h3>2. Align with audit & competitor context</h3>
-          <p>
-            We bring your SEO audit findings and competitor insights into the migration plan so that the new site addresses real gaps—not just design preferences.
-          </p>
-        </article>
-        <article class="timeline-step">
-          <h3>3. Generate draft static-site artifacts</h3>
-          <p>
-            AI assists with creating draft page copy, layouts, and static files (like HTML and CSS) that represent a clearer version of your site. These drafts are:</p>
-          <ul class="dash-list">
-            <li>Organized around your services, locations, and primary calls to action</li>
-            <li>Written in plain language for visitors and search engines</li>
-            <li>Structured to support local SEO and analytics tracking</li>
-          </ul>
-        </article>
-        <article class="timeline-step">
-          <h3>4. Map redirects and URL changes</h3>
-          <p>
-            To protect your existing visibility, we create a redirect map from old URLs to new ones where appropriate. This helps search engines and returning visitors find the right content.</p>
-        </article>
-        <article class="timeline-step">
-          <h3>5. Operator and owner review</h3>
-          <p>
-            Before anything is pushed toward a new host, operators and owners can:</p>
-          <ul class="dash-list">
-            <li>Review the draft site structure and content</li>
-            <li>Comment on language, offers, and service descriptions</li>
-            <li>Approve or request revisions to the migration plan</li>
-          </ul>
-        </article>
-        <article class="timeline-step">
-          <h3>6. Safe go-live planning</h3>
-          <p>
-            Admins and operators decide when and how to move from the current site to the improved version, using controlled publishing targets.
-          </p>
-          <p class="small">
-            MBSRN supports planning and artifact generation. Final hosting selection and DNS changes are coordinated by your team or trusted providers.
-          </p>
-        </article>
-      </div>
+      <h2 id="migration-steps-heading">How MBSRN migration works</h2>
+      <ol class="steps-list">
+        <li>
+          <h3>1. Ingest your existing site</h3>
+          <p>MBSRN scans your current website to capture page content, structure, and basic assets. This becomes the basis for audit and migration planning.</p>
+        </li>
+        <li>
+          <h3>2. Align on requirements</h3>
+          <p>Operators specify what&apos;s in-scope for migration: which services, locations, and pages matter most, and where you want to simplify.</p>
+        </li>
+        <li>
+          <h3>3. Generate draft site artifacts</h3>
+          <p>AI assists in drafting updated copy, navigation, and layouts tailored to your business. The output is a set of static files for operator review.</p>
+        </li>
+        <li>
+          <h3>4. Review with humans</h3>
+          <p>Operators and owners review drafts section by section. You can adjust messaging, calls-to-action, and page structure before any publish step.</p>
+        </li>
+        <li>
+          <h3>5. Approve and connect to your preferred hosting</h3>
+          <p>After approval, admins can work with your chosen implementation path to host the site. MBSRN doesn&apos;t lock you into a specific provider.</p>
+        </li>
+      </ol>
     </div>
   </section>
 
   <!-- TRUST & CONTROL -->
-  <section class="section-dark">
+  <section class="section" aria-labelledby="trust-heading">
     <div class="container two-col">
       <div>
-        <h2>Control, safety, and clear expectations.</h2>
-        <p>
-          Migration can feel risky. MBSRN is designed to reduce that risk by making each step visible and reviewable.
-        </p>
-      </div>
-      <div>
-        <ul class="check-list">
-          <li>No automatic production changes without explicit approval.</li>
-          <li>Draft-only artifacts for operator and owner review.</li>
-          <li>Clear separation between content planning and technical hosting changes.</li>
-          <li>Plain-English explanations of tradeoffs and recommendations.</li>
+        <h2 id="trust-heading">Operator control and safe publishing</h2>
+        <p>Migration can feel risky. MBSRN is designed to make it feel controlled instead.</p>
+        <ul class="checklist">
+          <li><strong>No automatic cutovers.</strong> There is always a manual decision point before any new site replaces your current one.</li>
+          <li><strong>Versioned drafts.</strong> You can compare &ldquo;before&rdquo; and &ldquo;after&rdquo; versions of key pages.</li>
+          <li><strong>Clear ownership.</strong> Admins decide who can approve drafts and manage hosting connections.</li>
         </ul>
-        <p class="small">
-          We do not guarantee specific SEO results or provide legal, financial, or compliance guarantees. The goal is to give you a stronger foundation for ongoing improvement.
-        </p>
+      </div>
+      <div class="card">
+        <h3>Designed for small business realities</h3>
+        <p>Most owners don&apos;t have time for a six-month rebuild. MBSRN helps break migration into manageable steps tied to your SEO plan—not an all-or-nothing redesign.</p>
+        <a href="seo-audit-recommendations.html" class="inline-link">Connect migration to your SEO roadmap</a>
       </div>
     </div>
   </section>
 
   <!-- CTA -->
-  <section class="section-cta">
-    <div class="container cta-inner">
+  <section class="section section-accent" aria-labelledby="cta-heading">
+    <div class="container two-col">
       <div>
-        <h2>See what your migration could look like.</h2>
-        <p>
-          Share your current site and goals. We will outline a draft migration plan, including recommended structure, key pages, and next steps.
-        </p>
+        <h2 id="cta-heading">Explore a migration path that fits your business</h2>
+        <p>Start with a website review. From there, decide whether you only need targeted fixes or a full migration from your current host.</p>
+        <ul class="bullet-list">
+          <li>Understand your current risks and opportunities.</li>
+          <li>See example drafts before committing to a big change.</li>
+          <li>Choose timelines that match your team&apos;s capacity.</li>
+        </ul>
       </div>
-      <div class="cta-actions">
-        <a href="contact.html" class="btn btn-primary">Explore Website Migration</a>
-        <a href="how-it-works.html" class="btn btn-outline">Review the full workflow</a>
+      <div class="cta-column">
+        <a href="index.html#request-review" class="btn btn-primary">Request a Website Review</a>
+        <a href="seo-audit-recommendations.html" class="btn btn-secondary">Start an SEO Audit</a>
+        <p class="small">Draft-only notice: This page is a static example of a migration artifact. Actual migrations are planned and executed with human oversight inside the MBSRN workflows.</p>
       </div>
     </div>
   </section>
@@ -191,18 +140,33 @@
   <div class="container footer-inner">
     <div class="footer-left">
       <img src="assets/images/mbsrn-logo.png" alt="MBSRN small logo" class="logo-small" />
-      <span>My Business Sucks Right Now</span>
-      <p class="footer-note">Draft-static site content for review. Not connected to live publishing.</p>
+      <p class="footer-text">Practical website migration support for overloaded small business operators.</p>
     </div>
     <div class="footer-links">
       <a href="index.html">Home</a>
       <a href="how-it-works.html">How It Works</a>
-      <a href="website-migration.html">Website Migration</a>
-      <a href="contact.html">Contact</a>
-      <a href="#" aria-disabled="true">Privacy Policy (placeholder)</a>
-      <a href="#" aria-disabled="true">Terms of Service (placeholder)</a>
+      <a href="seo-audit-recommendations.html">SEO Audit & Recommendations</a>
+    </div>
+    <div class="footer-meta">
+      <p class="footer-text"><a href="index.html#request-review" class="inline-link">Request a Website Review</a></p>
+      <p class="footer-text">Privacy Policy · Terms of Service (draft placeholders)</p>
     </div>
   </div>
+  <!-- Analytics Placeholder: Insert approved analytics scripts here after operator and admin review. -->
 </footer>
+
+<script>
+(function() {
+  const root = document.documentElement;
+  const btn = document.querySelector('.theme-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', function() {
+    const current = root.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    btn.textContent = next === 'dark' ? '☾' : '☼';
+  });
+})();
+</script>
 </body>
 </html>
